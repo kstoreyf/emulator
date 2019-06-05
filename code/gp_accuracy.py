@@ -14,37 +14,40 @@ from time import time
 t1 = time()
 
 
-#statistic = 'vpf'
 statistic = 'upf'
+#statistic = 'upf'
 
 #traintag = '_cos0'
-traintag = '_sample20'
+traintag = '_nonolap'
+nhodpercosmo = 50
+#traintag = '_sample50v4'
 #testtag = '_hod1_mean'
 #testtag = '_cos0_mean'
-testtag = '_all_mean'
+testtag = '_mean_test0'
 #hod = 0
 hod = None
-errtag = ''
+#errtag = ''
+errtag = '_10hod_test0'
 tag = ''
 
 testmean = False
 if 'mean' in testtag:
     testmean = True
 
-subsample = 20
-version = 0
+#subsample = 50
+#version = 4
 
-nbins = 12
+nbins = 9
 
 testid = 0
 boxid = 0
 
 res_dir = '../../clust/results_{}/'.format(statistic)
 training_dir = '{}training_{}{}/'.format(res_dir, statistic, traintag)
-if testmean:
-    testing_dir = '{}testing_{}{}/'.format(res_dir, statistic, testtag)
-else:
-    testing_dir = '{}testing_{}{}_mean/'.format(res_dir, statistic, testtag)
+#if testmean:
+#    testing_dir = '{}testing_{}{}_mean/'.format(res_dir, statistic, testtag)
+#else:
+testing_dir = '{}testing_{}{}/'.format(res_dir, statistic, testtag)
 
 gptag = traintag + errtag + tag
 acctag = gptag + testtag
@@ -68,7 +71,9 @@ if 'log' in tag:
     log = True
 
 # hod parameters (5000 rows, 8 cols)
-hods = np.loadtxt("../CMASS_BIAS/COS_2000HOD/HOD_design_np8_n5000.dat")
+#OLD hods = np.loadtxt("../CMASS_BIAS/COS_2000HOD/HOD_design_np8_n5000.dat")
+#NEW
+hods = np.loadtxt("/mount/sirocco2/zz681/emulator/CMASSLOWZ/galaxy_mocks/HOD_design_np11_n5000_new_f_env.dat")
 
 hods[:,0] = np.log10(hods[:,0])
 hods[:,2] = np.log10(hods[:,2])
@@ -91,7 +96,11 @@ elif fixed_cosmo:
     nparams = nhodparams
 else:
     CC = range(0, 40)
-    HH = np.loadtxt("../CMASS/Gaussian_Process/GP/HOD_random_subsample_{}_version_{}.dat".format(subsample, version))
+    nhodnonolap = 100
+    HH = np.array(range(0,len(CC)*nhodnonolap))
+    HH = HH.reshape(len(CC), nhodnonolap)
+    HH = HH[:,0:nhodpercosmo]
+    #HH = np.loadtxt("../CMASS/Gaussian_Process/GP/HOD_random_subsample_{}_version_{}.dat".format(subsample, version))
     nparams = nhodparams + ncosmoparams
 
 rr = np.empty((HH.shape[1] * len(CC), nparams))
@@ -202,8 +211,6 @@ for j in range(nbins):
 
 
 if fixed_hod:
-    # confused about which hods should be testing on for this??
-    #CC_test = range(0, 7)
     #HH_test = range(hod, hod+1)
     CC_test = range(0, 7)
     # TODO: add more tests, for now just did first 10 hod
@@ -215,10 +222,16 @@ else:
     CC_test = range(0, 7)
     # TODO: add more tests, for now just did first 10 hod
     HH_test = range(0, 10)
-
+    #HH_test = [0, 6, 10, 11, 14, 16, 19, 20, 23, 24]
+  
 ss = 0
+#OLD (still using the good ones for now)
+#hods_test = np.loadtxt("../CMASS_BIAS/GP_Test_BOX/HOD_test_np8_n1000.dat")
+#FIRST NEW
+#hods_test = np.loadtxt("/mount/sirocco2/zz681/emulator/CMASSLOWZ/test_galaxy_mocks_wp_RSD/test_galaxy_mocks/HOD_test_np11_n1000.dat")
+# NEW NEW
+hods_test = np.loadtxt("/mount/sirocco2/zz681/emulator/CMASSLOWZ/test_galaxy_mocks_wp_RSD/test_galaxy_mocks_new_f_env/HOD_test_np11_n1000_new_f_env.dat")
 
-hods_test = np.loadtxt("../CMASS_BIAS/GP_Test_BOX/HOD_test_np8_n1000.dat")
 hods_test[:,0] = np.log10(hods_test[:,0])
 hods_test[:,2] = np.log10(hods_test[:,2])
 

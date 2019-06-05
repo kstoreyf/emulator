@@ -9,17 +9,19 @@ import george
 
 
 statistic = 'upf'
-
-#traintag = '_sample20'
-traintag = '_hod0'
+#traintag = '_sample50v4'
+traintag = '_nonolap'
+nhodpercosmo = 50
+#traintag = '_hod0'
 #traintag = '_cos0'
 tag = ''
-errtag = ''
+errtag = '_10hod_test0'
 
-subsample = 20
-version = 0
 
-nbins = 12
+#subsample = 50
+#version = 4
+
+nbins = 9
 testid = 0
 
 res_dir = '../../clust/results_{}/'.format(statistic)
@@ -41,8 +43,9 @@ if 'log' in tag:
     log = True
 
 # hod parameters (5000 rows, 8 cols)
-hods = np.loadtxt("../CMASS_BIAS/COS_2000HOD/HOD_design_np8_n5000.dat")
-
+#OLD hods = np.loadtxt("../CMASS_BIAS/COS_2000HOD/HOD_design_np8_n5000.dat")
+#NEW
+hods = np.loadtxt("/mount/sirocco2/zz681/emulator/CMASSLOWZ/galaxy_mocks/HOD_design_np11_n5000_new_f_env.dat")
 
 hods[:,0] = np.log10(hods[:,0])
 hods[:,2] = np.log10(hods[:,2])
@@ -64,7 +67,12 @@ elif fixed_cosmo:
     nparams = nhodparams
 else:
     CC = range(0, 40)
-    HH = np.loadtxt("../CMASS/Gaussian_Process/GP/HOD_random_subsample_{}_version_{}.dat".format(subsample, version))
+    #CC = range(0, 1)
+    nhodnonolap = 100
+    HH = np.array(range(0,len(CC)*nhodnonolap))
+    HH  = HH.reshape(len(CC), nhodnonolap)
+    HH = HH[:,0:nhodpercosmo]
+    #HH = np.loadtxt("../CMASS/Gaussian_Process/GP/HOD_random_subsample_{}_version_{}.dat".format(subsample, version))
     nparams = nhodparams + ncosmoparams
 
 

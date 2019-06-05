@@ -11,12 +11,13 @@ def main():
     #datatag = '_hod1'
     #fixed_hod = True
     fixed_hod = False
-    testtag = '_all'
+    #testtag = '_10hod_old'
+    testtag = ''
     #errtag = '_errx100'
-    errtag = ''
+    errtag = '_10hod_test0'
 
     res_dir = '../../clust/results_{}/'.format(statistic)
-    testing_dir = '../../clust/results/testing_{}{}/'.format(statistic, testtag)
+    testing_dir = '../../clust/results_{}/testing_{}{}/'.format(statistic, statistic, testtag)
     #testmean_dir = '../../clust/results/testing_{}{}_mean/'.format(statistic, testtag)
 
     #hods = range(123, 135)
@@ -26,17 +27,18 @@ def main():
         cosmos = range(7)
     else:
         hods = range(10)
+        #hods = [0, 6, 10, 11, 14, 16, 19, 20, 23, 24]#, 25, 26, 27, 28, 29, 32, 33, 38, 41, 43, 44, 47, 50, 52, 57, 58, 59, 60, 64, 68, 71, 72, 74, 75, 77, 81, 82, 83, 84, 85, 87, 91, 97, 99] #good hods
         cosmos = range(7)
 
     ncosmos = len(cosmos)
     nboxes = 5
     boxes = range(nboxes)
-    tests = range(5)
+    tests = range(1)
     ntests = len(tests)
     rads = []
     vals = []
 
-    nbins = 12
+    nbins = 9
 
     wps_grid = np.zeros((ncosmos, nboxes, nbins))
     shots = []
@@ -73,8 +75,8 @@ def main():
             print "cosmoavg", cosmo_avg
 
             for boxmean in box_avgs:
-                devmean = np.nan_to_num((boxmean-cosmo_avg)/cosmo_avg)
-                #devmean = np.nan_to_num(boxmean-cosmo_avg)
+                devmean = np.nan_to_num((boxmean - cosmo_avg)/cosmo_avg)
+                #devmean = np.nan_to_num(boxmean - cosmo_avg)
 
                 #print devmean
                 devmeans.append(devmean)
@@ -82,14 +84,14 @@ def main():
 
    #shots.append(np.var(wps_hod, axis=0))
 
-    err = np.var(np.array(devmeans), axis=0)
-    #err = np.std(np.array(devmeans), axis=0)
+    #err = np.var(np.array(devmeans), axis=0)
+    err = np.std(np.array(devmeans), axis=0)
     print len(devmeans)
     print "err:", err
 
     #err *= 100
     #save to both the directory and the mean, same error for both
-    np.savetxt(res_dir+"{}_error.dat".format(statistic), err)
+    np.savetxt(res_dir+"{}_error{}.dat".format(statistic, errtag), err)
 
     #wps_box_avg /= len(hods)
     #        wps_grid[cosmo][box] += wps_box_avg
