@@ -39,20 +39,20 @@ class gp_tr(object):
             ndim = len(self.p0)
             nwalkers = 2 * ndim
             Nstep = 5
-            print(ndim, nwalkers)
+            print((ndim, nwalkers))
             position = [self.p0 + 1e-3 * np.random.randn(len(self.p0)) for jj in range(nwalkers)]
             sampler = emcee.EnsembleSampler(nwalkers, ndim, self.lnprob)
             sampler.run_mcmc(position, Nstep)
             samples = sampler.chain[:, :, :].reshape((-1, ndim))
             chi2p = sampler.lnprobability[:, :].reshape(-1)
 
-            mcmc_data = zip(-chi2p, samples)
+            mcmc_data = list(zip(-chi2p, samples))
             mcmc_data = np.array(mcmc_data)
             self.p_op1 = mcmc_data[np.where(mcmc_data[:, 0] == min(mcmc_data[:, 0]))]
             #self.p_op = self.p_op[0]
             #??
-            print self.p_op1
-            print self.p_op1[0][1]
+            print(self.p_op1)
+            print(self.p_op1[0][1])
             self.p_op = self.p_op1[0][1]
             if save == True:
                 np.savetxt(savename + "_mcmc.dat", mcmc_data, fmt='%.6e')

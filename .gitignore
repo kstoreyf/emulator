@@ -5,3 +5,7 @@ tables/
 testing_results/
 training_results/
 CMASS*/
+**/output
+*.pyc
+*.bak
+*.ipynb_checkpoints

@@ -7,11 +7,15 @@ import emulator
 
 cosmo, hod = 0, 0
 statistic = 'upf'
+#param_names = ['M_sat', 'alpha', 'M_cut', 'sigma_logM', 'v_bc', 'v_bs', 'c_vir', 'f', 'f_env', 'delta_env', 'sigma_env']
+#param_names = ['Omega_m', 'Omega_b', 'sigma_8', 'h', 'n_s', 'N_eff', 'w']
+param_names = ['c_vir', 'f']
 res_dir = '../../clust/results_{}/'.format(statistic)
 plot_dir = '../plots/plots_2019-10-10'
 ytag = '_nonolap_10hod_test0_mean_test0'
 #savetag = '_msat_fenv'
-savetag = '_sigmalogM_mcut'
+#savetag = '_cosmoparams_nchain500'
+savetag = '_cvir_f_nchain2000'
 traintag = '_nonolap'
 nhodpercosmo = 50
 
@@ -34,9 +38,8 @@ print('y:', y.shape, y)
 # number of parameters, ex 8 hod + 7 cosmo
 #param_names = ['Omega_m']
 #param_names = ['M_sat', 'f_env']
-param_names = ['sigma_logM', 'M_cut']
+#param_names = ['sigma_logM', 'M_cut']
 num_params = len(param_names)
-
 #means = np.random.rand(ndim)
 cosmo_names = ['Omega_m', 'Omega_b', 'sigma_8', 'h', 'n_s', 'N_eff', 'w']
 cosmos_truth = np.loadtxt('../tables/cosmology_camb_test_box_full.dat')
@@ -63,7 +66,9 @@ rbins = range(5, 50, 5) # 5 to 45, 9 bins w 5 Mpc/h spacing
 nbins = len(rbins)
 
 print("Building emulator")
-emu = emulator.Emulator(statistic, training_dir, hyperparams, fixed_params=fixed_params, gperr=gperr)
+emu = emulator.Emulator(statistic, training_dir, fixed_params=fixed_params, gperr=gperr)
+emu.set_hyperparams(hyperparams)
+emu.build()
 print("Emulator built")
 
 #diagonal covariance matrix from error
@@ -83,9 +88,9 @@ print(cov.shape)
 #nwalkers = 250
 #nburn = 100
 #nsteps = 200
-nwalkers = 30
+nwalkers = 50
 nburn = 50
-nsteps = 300
+nsteps = 2000
 #nsteps = 10
 chain.run_mcmc([emu], param_names, [y], [cov], rbins, fixed_params=fixed_params, truth=truth, nwalkers=nwalkers,
         nsteps=nsteps, nburn=nburn, plot_fn=plot_fn)

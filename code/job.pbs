@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -N train_gp_wp_nonolap
+#PBS -N chain_2_n2000
 #PBS -l walltime=40:00:00
 #PBS -l nodes=1:ppn=1
 #PBS -m ae
@@ -11,6 +11,6 @@ PATH=$PBS_O_PATH
 echo $PBS_O_WORKDIR
 echo 'starting'
 echo -n 'Job is running on node '; cat $PBS_NODEFILE
-python train_gp.py
+python run_chain.py
 echo 'done'
 
