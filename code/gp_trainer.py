@@ -20,7 +20,7 @@ class gp_tr(object):
         #self.p0 = gp.kernel.pars
         self.p0 = gp.kernel.get_parameter_vector() # is this the same thing in new george??
         # self.gp.compute(self.x)
-
+        print(self.p0)
         if optimize == True and MCMC == True:
             print("Both optimization and MCMC are chosen, only optimization will run...")
             MCMC = False

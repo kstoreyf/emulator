@@ -2,7 +2,7 @@ import numpy as np
 import os
 
 
-statistic = 'upf'
+statistic = 'wp'
 
 testtag = ''
 meantag = '_test0'
@@ -14,8 +14,7 @@ boxids = range(5)
 res_dir = '../../clust/results_{}/'.format(statistic)
 testing_dir = '{}testing_{}{}/'.format(res_dir, statistic, testtag)
 testmean_dir = '{}testing_{}{}_mean{}/'.format(res_dir, statistic, testtag, meantag)
-if not os.path.exists(testmean_dir):
-    os.makedirs(testmean_dir)
+os.makedirs(testmean_dir, exist_ok=True)
 
 CC_test = range(0, 7)
 #CC_test = range(0, 1)

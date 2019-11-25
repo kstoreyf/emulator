@@ -1,24 +1,29 @@
 import numpy as np
+import os
 
 import emulator
 
 
+statistic = 'upf'
 traintag = '_nonolap'
-nhodpercosmo = 50
-
+testtag = '_mean_test0'
 errtag = '_10hod_test0'
+testmean = True
+
+tag = '_emuobj'
+gptag = traintag + errtag + tag
+acctag = gptag + testtag
+
+res_dir = '../../clust/results_{}/'.format(statistic)
 gperr = np.loadtxt(res_dir+"{}_error{}.dat".format(statistic, errtag))
 
-tag = ''
-
 training_dir = '{}training_{}{}/'.format(res_dir, statistic, traintag)
-gptag = traintag + errtag + tag
 hyperparams = "../training_results/{}_training_results{}.dat".format(statistic, gptag)
 
-testing_dir = '{}testing_{}{}/'.format(res_dir, statistic, traintag)
+testing_dir = '{}testing_{}{}/'.format(res_dir, statistic, testtag)
+predict_savedir = f"../testing_results/predictions_{statistic}{acctag}/"
+os.makedirs(predict_savedir, exist_ok=True)
 
-
-emu = emulator.Emulator(statistic, training_dir=training_dir, testing_dir=testing_dir, fixed_params=fixed_params, gperr=gperr)
-emu.set_hyperparams(hyperparams)
+emu = emulator.Emulator(statistic, training_dir=training_dir, testing_dir=testing_dir, gperr=gperr, testmean=testmean, hyperparams=hyperparams)
 emu.build()
-emu.test()
+emu.test(predict_savedir)

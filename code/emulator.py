@@ -7,28 +7,24 @@ import gp_trainer as trainer
 
 class Emulator:
 
-    def __init__(self, statistic, training_dir=None, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, mode='train'):
+    def __init__(self, statistic, training_dir=None, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, testmean=True):
         
         # set parameters
         self.statistic = statistic
         self.fixedparams = fixed_params
         self.nbins = nbins
-        self.gps = np.empty(nbins)
+        self.gps = [None]*nbins
         self.training_dir = training_dir
         self.testing_dir = testing_dir
+        self.testmean = testmean
 
         # load data
-        #if mode=='train':
-        if self.testing_dir:
-            self.load_training_data()
-        #elif mode=='test':
         if self.training_dir:
+            self.load_training_data()
+        if self.testing_dir:
             self.load_testing_data()
-        #else:
-        #    raise ValueError(r"Mode {mode} not recognized! Use 'train' or 'test'")
 
         # initialize emulator
-        self.set_kernel(np.full(self.nparams, 0.1))
         self.param_bounds = self.set_param_bounds()
         self.gperr = self.load_file_or_obj(gperr)
         if hyperparams:
@@ -74,13 +70,9 @@ class Emulator:
     def build(self):
         print("Rebuilding emulators")
         for bb in range(self.nbins):
-            
-            # TODO: make sure this is doing same thing
-            #training_data_normmean = self.training_data[:,bb]/self.training_mean[bb] # ndata x 1
-            #mean = np.mean(training_data_normmean)
-            # ok i think it's good
             mean = np.mean(self.training_data_normmean[:,bb])
-            gp = self.init_gp(self.training_params, self.gperr[bb], mean=mean)
+            kernel = self.get_kernel(np.full(self.nparams, 0.1))
+            gp = self.init_gp(self.training_params, self.gperr[bb], kernel, mean=mean)
             self.gps[bb] = self.set_hyperparams(gp, self.training_params, 
                             self.gperr[bb], self.hyperparams[bb])
 
@@ -90,23 +82,43 @@ class Emulator:
     def train(self, save_hyperparams_fn):
         print("Training commences!")
         for bb in range(self.nbins):
+        #for bb in range(1,self.nbins):
             print(f"Training bin {bb}")
-            #training_data_normmean = self.training_data[:,bb]/self.training_mean[bb] # ndata x 1
-            #mean = np.mean(training_data_normmean)
-            mean = np.mean(self.training_data_normmean[bb])
-            gp = self.init_gp(self.training_params, self.gperr[bb], mean=mean)
-            self.hyperparams[bb] = trainer.gp_tr(self.training_params[:,bb], 
+            mean = np.mean(self.training_data_normmean[:,bb])
+            print(mean)
+            print(self.gperr[bb])
+            print(self.training_params.shape)
+            print(self.training_data_normmean[:,bb].shape)
+            print(self.training_data_normmean[:,bb][:20])
+            kernel = self.get_kernel(np.full(self.nparams, 0.1))
+            gp = self.init_gp(self.training_params, self.gperr[bb], kernel, mean=mean)
+            hyps = trainer.gp_tr(self.training_params, 
                         self.training_data_normmean[:,bb], self.gperr[bb], 
                         gp, optimize=True).p_op
-        
+            print(hyps)
+            self.hyperparams[bb, :] = hyps
+            print(self.hyperparams[bb])
+
         print("Done training!")
         np.savetxt(save_hyperparams_fn, self.hyperparams, fmt='%.7f')
         print(f"Saved hyperparameters to {save_hyperparams_fn}")
 
 
-    def test(self):
-        for tparams in self.testing_params:
+    def test(self, predict_savedir):
+        for pid, tparams in self.testing_params.items():
             vals_pred = self.predict(tparams)
+            print(vals_pred)
+            print(self.testing_data[pid])
+            print()
+            if self.testmean:
+                idtag = "cosmo_{}_HOD_{}_mean".format(pid[0], pid[1])
+            else:
+                idtag = "cosmo_{}_Box_{}_HOD_{}_test_{}".format(pid[0], boxid, pid[1], testid)
+
+            pred_fn = f"{predict_savedir}/{self.statistic}_{idtag}.dat"
+
+            results = np.array([self.testing_radii, vals_pred])
+            np.savetxt(pred_fn, results.T, delimiter=',', fmt=['%f', '%e']) 
 
 
     def load_training_data(self):
@@ -117,15 +129,18 @@ class Emulator:
         hods[:, 0] = np.log10(hods[:, 0])
         hods[:, 2] = np.log10(hods[:, 2])
         nhodparams = hods.shape[1]
+        nhodnonolap = 100
 
         # cosmology params (40 rows, 7 cols)
         cosmos = np.loadtxt("../tables/cosmology_camb_full.dat")
         ncosmoparams = cosmos.shape[1]
 
         CC = range(0, cosmos.shape[0])
-        #CC = range(0, 1)
-        nhodnonolap = 100
         nhodpercosmo = 50
+        #speedy params
+        #CC = range(0, 1)
+        #nhodpercosmo = 1
+
         HH = np.array(range(0, len(CC) * nhodnonolap))
         HH = HH.reshape(len(CC), nhodnonolap)
         HH = HH[:, 0:nhodpercosmo]
@@ -134,6 +149,8 @@ class Emulator:
         print(f"Nparams: {self.nparams}")
         self.ndata = HH.shape[1] * cosmos.shape[0]
 
+        #self.training_params = {}
+        #self.training_data = {}
         self.training_params = np.empty((self.ndata, self.nparams))
         self.training_data = np.empty((self.ndata, self.nbins))
 
@@ -157,11 +174,11 @@ class Emulator:
         self.training_data_normmean = self.training_data/self.training_mean
 
 
-    def load_testing_data():
+    def load_testing_data(self):
         print("Loading testing data")
         
         hods_test = np.loadtxt("/mount/sirocco2/zz681/emulator/CMASSLOWZ/test_galaxy_mocks_wp_RSD/test_galaxy_mocks_new_f_env/HOD_test_np11_n1000_new_f_env.dat")
-        nhodparams_test = hods.shape[1]
+        nhodparams_test = hods_test.shape[1]
         hods_test[:,0] = np.log10(hods_test[:,0])
         hods_test[:,2] = np.log10(hods_test[:,2])
         cosmos_test = np.loadtxt("../CMASS/Gaussian_Process/hod_file/cosmology_camb_test_box_full.dat")
@@ -172,37 +189,40 @@ class Emulator:
         HH_test = range(0, 10)
 
         self.nparams_test = nhodparams_test + ncosmoparams_test
-        print(f"Nparams: {self.nparams}")
-        self.ndata_test = HH.shape[1] * cosmos.shape[0]
+        print(f"Nparams: {self.nparams_test}")
+        #self.ndata_test = HH_test.shape[1] * cosmos_test.shape[0]
 
-        self.testing_params = np.empty((self.ndata_test, self.nparams_test))
-        self.testing_data = np.empty((self.ndata_test, self.nbins))
-        #self.testing_ids = np.
+        #self.testing_params = np.empty((self.ndata_test, self.nparams_test))
+        #self.testing_data = np.empty((self.ndata_test, self.nbins))
+        self.testing_params = {}
+        self.testing_data = {}
 
-        idata = 0
+        #idata = 0
         for CID_test in CC_test:
             for HID_test in HH_test:
-                print('CID, HID:', CID_test, HID_test)
                 hods_test_hid = hods_test[HID_test,:]
 
-                if testmean:
+                if self.testmean:
                     idtag = "cosmo_{}_HOD_{}_mean".format(CID_test, HID_test)
-                    _, vals_test = np.loadtxt(testing_dir + "{}_{}.dat".format(statistic, idtag))
+                    rads, vals_test = np.loadtxt(self.testing_dir + "{}_{}.dat".format(self.statistic, idtag))
                 else:
                     idtag = "cosmo_{}_Box_{}_HOD_{}_test_{}".format(CID_test, boxid, HID_test, testid)
-                    _, vals_test = np.loadtxt(testing_dir + "{}_{}.dat".format(statistic, idtag),
+                    rads, vals_test = np.loadtxt(self.testing_dir + "{}_{}.dat".format(self.statistic, idtag),
                                                   delimiter=',', unpack=True)
 
-                vals_test = vals_test[:nbins]
-                self.testing_data[idata,:] = vals_test
-
+                #self.testing_data[idata,:] = vals_test
+                pid = (CID_test, HID_test)
+                self.testing_data[pid] = vals_test
                 param_arr = np.concatenate((cosmos_test[CID_test,:], hods_test[HID_test,:]))
-                self.testing_params[idata, :] = param_arr
-                idata += 1
+                #self.testing_params[idata, :] = param_arr
+                self.testing_params[pid] = param_arr
+                #TODO: really only need to set this once
+                self.testing_radii = rads
+                #idata += 1
 
 
-    def init_gp(self, training_params, err, mean=None):
-        gp = george.GP(self.kernel, mean=mean, solver=george.BasicSolver)
+    def init_gp(self, training_params, err, kernel, mean=None):
+        gp = george.GP(kernel, mean=mean, solver=george.BasicSolver)
         #TODO: WHY DO I COMPUTE TWICE??
         gp.compute(training_params, err)
         return gp
@@ -215,7 +235,7 @@ class Emulator:
 
 
     # 15 initial values for the 7 hod and 8 cosmo params
-    def set_kernel(self, p0):
+    def get_kernel(self, p0):
         #k1 = kernels.ExpSquaredKernel(p0, ndim=len(p0))
         k2 = kernels.Matern32Kernel(p0, ndim=len(p0))
         #k3 = kernels.ConstantKernel(0.1, ndim=len(p0))
@@ -223,7 +243,8 @@ class Emulator:
         k5 = kernels.ConstantKernel(0.1, ndim=len(p0))
         kernel = k2 + k5
         # kernel = np.var(y)*k1
-        self.kernel = kernel
+        #print(kernel)
+        return kernel
 
 
     def get_param_bounds(self, pname):
@@ -241,7 +262,6 @@ class Emulator:
         for pname in cosmo_names:
             pidx = cosmo_names.index(pname)
             vals = cosmos_truth[:,pidx]
-            # should i add a buffer?
             pmin = np.min(vals)
             pmax = np.max(vals)
             buf = (pmax-pmin)*0.1
@@ -250,7 +270,6 @@ class Emulator:
         for pname in hod_names:
             pidx = hod_names.index(pname)
             vals = hods_truth[:,pidx]
-            # should i add a buffer?
             pmin = np.min(vals)
             pmax = np.max(vals)
             buf = (pmax-pmin)*0.1

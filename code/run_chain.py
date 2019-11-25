@@ -66,8 +66,7 @@ rbins = range(5, 50, 5) # 5 to 45, 9 bins w 5 Mpc/h spacing
 nbins = len(rbins)
 
 print("Building emulator")
-emu = emulator.Emulator(statistic, training_dir, fixed_params=fixed_params, gperr=gperr)
-emu.set_hyperparams(hyperparams)
+emu = emulator.Emulator(statistic, training_dir, fixed_params=fixed_params, gperr=gperr, hyperparams=hyperparams)
 emu.build()
 print("Emulator built")
 
