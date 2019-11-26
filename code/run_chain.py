@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import scipy
 import emcee
@@ -5,41 +6,49 @@ import emcee
 import chain
 import emulator
 
+# Parameters
 cosmo, hod = 2, 2
-statistic = 'wp'
+statistic = 'upf'
+traintag = '_nonolap'
+testtag = '_mean_test0'
+errtag = '_10hod_test0'
+#tag = '_log'
+tag = ''
+log = True
+multi = False
+#multi = True
+param_names = ['f_env']
+#savetag = '_sigma8_nchain2000'
+savetag = '_f_env_nchain2000'
+plot_dir = '../plots/plots_2019-11-26'
+
+#nwalkers = 10
+#nburn = 50
+#nsteps = 100
+nwalkers = 250
+nburn = 100
+nsteps = 2000
+
 #param_names = ['M_sat', 'alpha', 'M_cut', 'sigma_logM', 'v_bc', 'v_bs', 'c_vir', 'f', 'f_env', 'delta_env', 'sigma_env']
 #param_names = ['Omega_m', 'Omega_b', 'sigma_8', 'h', 'n_s', 'N_eff', 'w']
 #param_names = ['c_vir', 'f']
-param_names = ['sigma_8']
-res_dir = '../../clust/results_{}/'.format(statistic)
-plot_dir = '../plots/plots_2019-11-26'
-ytag = '_nonolap_10hod_test0_mean_test0'
-#savetag = '_msat_fenv'
-#savetag = '_cosmoparams_nchain500'
-savetag = '_cvir_f_nchain2000'
-traintag = '_nonolap'
-nhodpercosmo = 50
 
-errtag = '_10hod_test0'
-gperr = np.loadtxt(res_dir+"{}_error{}.dat".format(statistic, errtag))
-
-tag = ''
-
-training_dir = '{}training_{}{}/'.format(res_dir, statistic, traintag)
+# Set file and directory names
 gptag = traintag + errtag + tag
+res_dir = '../../clust/results_{}/'.format(statistic)
+ytag = traintag + errtag + testtag
+gperr = np.loadtxt(res_dir+"{}_error{}.dat".format(statistic, errtag))
+training_dir = '{}training_{}{}/'.format(res_dir, statistic, traintag)
+testing_dir = '{}testing_{}{}/'.format(res_dir, statistic, testtag)
 hyperparams = "../training_results/{}_training_results{}.dat".format(statistic, gptag)
-
-plot_fn = f'{plot_dir}/prob{gptag}{savetag}.png'
+plot_fn = f'{plot_dir}/prob_{statistic}{gptag}{savetag}.png'
 
 # actual calculated stat
-rad, y = np.loadtxt('../testing_results/tests_{}{}/{}_cosmo_{}_HOD_{}_mean.dat'
-                          .format(statistic, ytag, statistic, cosmo, hod))
+rad, y = np.loadtxt('{}/{}_cosmo_{}_HOD_{}_mean.dat'
+                          .format(testing_dir, statistic, cosmo, hod))
 print('y:', y.shape, y)
 
 # number of parameters, ex 8 hod + 7 cosmo
-#param_names = ['Omega_m']
-#param_names = ['M_sat', 'f_env']
-#param_names = ['sigma_logM', 'M_cut']
 num_params = len(param_names)
 #means = np.random.rand(ndim)
 cosmo_names = ['Omega_m', 'Omega_b', 'sigma_8', 'h', 'n_s', 'N_eff', 'w']
@@ -62,12 +71,8 @@ for pn in param_names:
     truth[pn] = fixed_params[pn]
     fixed_params.pop(pn)
 
-
-rbins = range(5, 50, 5) # 5 to 45, 9 bins w 5 Mpc/h spacing
-nbins = len(rbins)
-
 print("Building emulator")
-emu = emulator.Emulator(statistic, training_dir, fixed_params=fixed_params, gperr=gperr, hyperparams=hyperparams)
+emu = emulator.Emulator(statistic, training_dir,  fixed_params=fixed_params, gperr=gperr, hyperparams=hyperparams, log=log)
 emu.build()
 print("Emulator built")
 
@@ -85,14 +90,10 @@ cov = np.diag(emu.gperr)
 #cov = scipy.linalg.inv(cov)
 print(cov)
 print(cov.shape)
-#nwalkers = 250
-#nburn = 100
-#nsteps = 200
-nwalkers = 50
-nburn = 50
-nsteps = 2000
-#nsteps = 10
-chain.run_mcmc([emu], param_names, [y], [cov], rbins, fixed_params=fixed_params, truth=truth, nwalkers=nwalkers,
-        nsteps=nsteps, nburn=nburn, plot_fn=plot_fn)
+start = time.time()
+chain.run_mcmc([emu], param_names, [y], [cov], fixed_params=fixed_params, truth=truth, nwalkers=nwalkers,
+        nsteps=nsteps, nburn=nburn, plot_fn=plot_fn, multi=multi)
+end = time.time()
+print(f"Time: {(end-start)/60.0} min")
 
 

@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import multiprocessing as mp
 
 import emcee
 import corner
@@ -12,7 +13,6 @@ def lnprob(theta, *args):
     return lp + lnlike(theta, *args)
 
 # use flat prior on bounds emu is built from. 0 if in (ln 1), -inf if out (ln 0)
-# Omega_m
 # x/theta: params proposed by sampler
 def lnprior(theta, param_names, *args):
 
@@ -23,38 +23,18 @@ def lnprior(theta, param_names, *args):
             return -np.inf
     return 0
 
-# looks like multivariate gaussian, where x is emu prediction for given parameter values
-# and mean y is "measured value of observables" - or, "data to constrain against"
-# sean loads in mean from file, for each emu observable. looks like for each box number and realization?
-# ok so the y is the calculated stat value from the testbox. size nbins. if multiple (m) emus, m x nbins
-# mm and we're trying to minimize this difference?
-def lnlike(theta, param_names, fixed_params, r_bin_centers, ys, combined_inv_cov):
-    # don't want this!!! we are varying the theta (param vals), that's the point!!
-    # so we need the actual emulator
-    #emu_pred = np.loadtxt('../emulator/testing_results/predictions_{}_{}/{}_cosmo_{}_HOD_{}_mean.dat'
-    #                      .format(stat, tag, stat, cosmo, hod))
+
+def lnlike(theta, param_names, fixed_params, ys, combined_inv_cov):
+
     param_dict = dict(zip(param_names, theta))
     param_dict.update(fixed_params)
 
-    #print("ys:", np.array(ys).shape, ys)
-
     emu_preds = []
     for emu in _emus:
-        #print(emu.predict(param_dict), emu.predict(param_dict).shape)
         emu_preds.append(emu.predict(param_dict))
     emu_pred = np.hstack(emu_preds)
     diff = np.array(emu_pred) - np.array(ys)
     # TODO: sean doesn't have the 1/2 factor?
-
-    #TODO: this next line made my shapes not line up for the final dot product. not sure if python3 change
-    # or if i need this for ndim>1 covariance (now testing on just 1)
-    #combined_inv_cov = [combined_inv_cov]
-    # print('emus:', np.array(emu_pred).shape, emu_preds)
-    # print(diff.shape)
-    # print(diff)
-    # print(combined_inv_cov.shape)
-    # print(np.dot(combined_inv_cov, diff.T))
-    #return -np.dot(diff, np.dot(combined_inv_cov, diff).T) / 2.0
     return -np.dot(diff, np.dot(combined_inv_cov, diff.T).T) / 2.0
 
 
@@ -69,8 +49,8 @@ def _random_initial_guess(param_names, nwalkers, num_params):
     return pos0
 
 
-def run_mcmc(emus, param_names, ys, covs, rpoints, fixed_params={}, truth={}, nwalkers=1000,
-        nsteps=100, nburn=20, plot_fn=None):
+def run_mcmc(emus, param_names, ys, covs, fixed_params={}, truth={}, nwalkers=1000,
+        nsteps=100, nburn=20, plot_fn=None, multi=False):
 
     global _emus
     _emus = emus
@@ -84,17 +64,22 @@ def run_mcmc(emus, param_names, ys, covs, rpoints, fixed_params={}, truth={}, nw
     combined_inv_cov = np.array(combined_inv_cov)
 
     print(combined_inv_cov.shape)
-    args = [param_names, fixed_params, rpoints, ys, combined_inv_cov]
-    sampler = emcee.EnsembleSampler(nwalkers, num_params, lnprob, args=args)
+    args = [param_names, fixed_params, ys, combined_inv_cov]
+    
+    ncpu = mp.cpu_count()
+    print(f"{ncpu} CPUs")
+    with mp.Pool() as pool:
+        if multi:
+            sampler = emcee.EnsembleSampler(nwalkers, num_params, lnprob, args=args, pool=pool)
+        else:
+            sampler = emcee.EnsembleSampler(nwalkers, num_params, lnprob, args=args)
+        # lnprob(p, means, icov)
+        p0 = _random_initial_guess(param_names, nwalkers, num_params)
 
-    # lnprob(p, means, icov)
-    p0 = _random_initial_guess(param_names, nwalkers, num_params)
+        pos, prob, state = sampler.run_mcmc(p0, nburn)
+        sampler.reset()
 
-    pos, prob, state = sampler.run_mcmc(p0, nburn)
-    sampler.reset()
-
-    sampler.run_mcmc(pos, nsteps)
-
+        sampler.run_mcmc(pos, nsteps)
 
     for i in range(num_params):
         plt.figure()
@@ -120,25 +105,5 @@ def run_mcmc(emus, param_names, ys, covs, rpoints, fixed_params={}, truth={}, nw
           .format(np.mean(sampler.acceptance_fraction)))
 
     tol = 1
-    #print("Autocorrelation times: {0:.3f} steps"
-    # .format(sampler.get_autocorr_time(c=tol)))
     print("Mean autocorrelation time: {0:.3f} steps"
      .format(np.mean(sampler.get_autocorr_time(c=tol))))
-
-
-# ok so walkers are exploring the parameter space aka hod params and cosmo params, and passing
-# them to probability functions and evaluating probability at those values
-
-# we do a recovery test on a randomly chosen cosmology.
-
-#zhongxu paper: x is emu prediction of stat, mu is calculated stat from testbox (or survey)
-# but emu predic can't be based off of the actual values of params bc we shouldn't know them -
-# so i guess that's what the mcmc is doing?
-
-#covariance: corr bw r-bins as well as stats themselves (ex wp, monopole, quadrupole...)
-#minerva: 100 nbody sims. all at same cosmology i think? and with a particular hod?
-# calc corrfunc, estimate correlation matrix by normalizing cov mat of gal
-# corrfuncs (??). error of corr func is sum in quadrature of input training error and emulator uncertainty
-# this error estimate is diag elements, combined w correlation matrix to pop cov mat
-# cov mat is how parameters vary?? size of params/dims? yes ok
-# but wait still confused bc usually cov mat has dims of number of bins
