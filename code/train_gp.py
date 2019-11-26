@@ -11,9 +11,12 @@ sys.path.insert(0, '../../../CMASS/Gaussian_Process/GP/')
 
 
 statistic = 'wp'
+#statistic = 'upf'
 traintag = '_nonolap'
 #tag = '_emuobj'
-tag = ''
+#tag = ''
+tag = '_logmean'
+log = True
 errtag = '_10hod_test0'
 gptag = traintag + errtag + tag
 
@@ -24,9 +27,8 @@ training_dir = '{}training_{}{}/'.format(res_dir, statistic, traintag)
 gperr = np.loadtxt(res_dir+"{}_error{}.dat".format(statistic, errtag))
 save_hyperparams_fn = "../training_results/{}_training_results{}.dat".format(statistic, gptag)
 
-
 print("Training, savetag={}".format(gptag))
 
 emu = emulator.Emulator(statistic, training_dir=training_dir, 
-                                    nbins=nbins, gperr=gperr)
+                            nbins=nbins, gperr=gperr, log=log)
 emu.train(save_hyperparams_fn)

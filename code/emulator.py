@@ -7,7 +7,7 @@ import gp_trainer as trainer
 
 class Emulator:
 
-    def __init__(self, statistic, training_dir=None, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, testmean=True):
+    def __init__(self, statistic, training_dir, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, testmean=True, log=False):
         
         # set parameters
         self.statistic = statistic
@@ -17,10 +17,10 @@ class Emulator:
         self.training_dir = training_dir
         self.testing_dir = testing_dir
         self.testmean = testmean
+        self.log = log
 
         # load data
-        if self.training_dir:
-            self.load_training_data()
+        self.load_training_data()
         if self.testing_dir:
             self.load_testing_data()
 
@@ -60,9 +60,13 @@ class Emulator:
         for bb in range(self.nbins):
             # predict on all the training data in the bin - normalized by the mean as used for building emu
             training_data_pred = self.training_data_normmean[:,bb]
-            mu, cov = self.gps[bb].predict(training_data_pred, params_arr)
+            if self.log:
+                training_data_pred = np.log10(training_data_pred)
+            val_pred, cov_pred = self.gps[bb].predict(training_data_pred, params_arr)
+            if self.log:
+                val_pred = 10**val_pred
             # multiply by mean to get back to original values
-            y_pred[bb] = mu * self.training_mean[bb]
+            y_pred[bb] = val_pred * self.training_mean[bb]
 
         return y_pred
 
@@ -70,7 +74,12 @@ class Emulator:
     def build(self):
         print("Rebuilding emulators")
         for bb in range(self.nbins):
-            mean = np.mean(self.training_data_normmean[:,bb])
+            #training_data = self.training_data_normmean[:,bb]
+            training_data = self.training_data[:,bb]
+            if self.log:
+                training_data = np.log10(training_data)
+            training_data /= np.mean(training_data)
+            mean = np.mean(training_data)
             kernel = self.get_kernel(np.full(self.nparams, 0.1))
             gp = self.init_gp(self.training_params, self.gperr[bb], kernel, mean=mean)
             self.gps[bb] = self.set_hyperparams(gp, self.training_params, 
@@ -84,20 +93,21 @@ class Emulator:
         for bb in range(self.nbins):
         #for bb in range(1,self.nbins):
             print(f"Training bin {bb}")
-            mean = np.mean(self.training_data_normmean[:,bb])
-            print(mean)
-            print(self.gperr[bb])
-            print(self.training_params.shape)
-            print(self.training_data_normmean[:,bb].shape)
-            print(self.training_data_normmean[:,bb][:20])
+            #training_data = self.training_data_normmean[:,bb]
+            training_data = self.training_data[:,bb]
+            if self.log:
+                training_data = np.log10(training_data)
+            training_data /= np.mean(training_data)
+            mean = np.mean(training_data)
+            print('Mean:',mean)
             kernel = self.get_kernel(np.full(self.nparams, 0.1))
             gp = self.init_gp(self.training_params, self.gperr[bb], kernel, mean=mean)
             hyps = trainer.gp_tr(self.training_params, 
-                        self.training_data_normmean[:,bb], self.gperr[bb], 
+                        training_data, self.gperr[bb], 
                         gp, optimize=True).p_op
+            print("Hyperparams:")            
             print(hyps)
             self.hyperparams[bb, :] = hyps
-            print(self.hyperparams[bb])
 
         print("Done training!")
         np.savetxt(save_hyperparams_fn, self.hyperparams, fmt='%.7f')
@@ -105,6 +115,8 @@ class Emulator:
 
 
     def test(self, predict_savedir):
+        if not self.testing_dir:
+            raise ValueError('Must provide testing directory in emulator constructor!')
         for pid, tparams in self.testing_params.items():
             vals_pred = self.predict(tparams)
             print(vals_pred)
