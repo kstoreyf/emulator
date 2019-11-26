@@ -4,15 +4,15 @@ import os
 import emulator
 
 
-statistic = 'upf'
-#statistic = 'wp'
+#statistic = 'upf'
+statistic = 'wp'
 traintag = '_nonolap'
 testtag = '_mean_test0'
 errtag = '_10hod_test0'
 testmean = True
 
 #tag = '_emuobj'
-tag = '_log'
+tag = '_lognomean'
 gptag = traintag + errtag + tag
 acctag = gptag + testtag
 

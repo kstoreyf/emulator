@@ -5,13 +5,14 @@ import emcee
 import chain
 import emulator
 
-cosmo, hod = 0, 0
-statistic = 'upf'
+cosmo, hod = 2, 2
+statistic = 'wp'
 #param_names = ['M_sat', 'alpha', 'M_cut', 'sigma_logM', 'v_bc', 'v_bs', 'c_vir', 'f', 'f_env', 'delta_env', 'sigma_env']
 #param_names = ['Omega_m', 'Omega_b', 'sigma_8', 'h', 'n_s', 'N_eff', 'w']
-param_names = ['c_vir', 'f']
+#param_names = ['c_vir', 'f']
+param_names = ['sigma_8']
 res_dir = '../../clust/results_{}/'.format(statistic)
-plot_dir = '../plots/plots_2019-10-10'
+plot_dir = '../plots/plots_2019-11-26'
 ytag = '_nonolap_10hod_test0_mean_test0'
 #savetag = '_msat_fenv'
 #savetag = '_cosmoparams_nchain500'

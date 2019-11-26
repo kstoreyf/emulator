@@ -1,6 +1,8 @@
+import time
 import numpy as np
 import george
 from george import kernels
+import multiprocessing as mp
 
 import gp_trainer as trainer
 
@@ -78,8 +80,11 @@ class Emulator:
             training_data = self.training_data[:,bb]
             if self.log:
                 training_data = np.log10(training_data)
+            print(np.mean(training_data))
             training_data /= np.mean(training_data)
+            
             mean = np.mean(training_data)
+            print(mean)
             kernel = self.get_kernel(np.full(self.nparams, 0.1))
             gp = self.init_gp(self.training_params, self.gperr[bb], kernel, mean=mean)
             self.gps[bb] = self.set_hyperparams(gp, self.training_params, 
@@ -88,7 +93,8 @@ class Emulator:
             print("Computed GP {}".format(bb))
 
 
-    def train(self, save_hyperparams_fn):
+    def train_serial(self, save_hyperparams_fn):
+        start = time.time()
         print("Training commences!")
         for bb in range(self.nbins):
         #for bb in range(1,self.nbins):
@@ -112,7 +118,46 @@ class Emulator:
         print("Done training!")
         np.savetxt(save_hyperparams_fn, self.hyperparams, fmt='%.7f')
         print(f"Saved hyperparameters to {save_hyperparams_fn}")
+        end = time.time()
+        print(f"Time: {(end-start)/60.0} min")
 
+    def train(self, save_hyperparams_fn, nthreads=None):
+        start = time.time()
+        print("Training commences!")
+        if not nthreads:
+            nthreads = self.nbins
+        print("Constructing pool")
+        pool = mp.Pool(processes=nthreads)
+        print("Mapping bins")
+        res = pool.map(self.train_bin, range(self.nbins))
+        print("Done training!")
+        print(res)
+        for bb in range(self.nbins):
+            self.hyperparams[bb, :] = res[bb]
+        print(self.hyperparams[-1, :])
+        np.savetxt(save_hyperparams_fn, self.hyperparams, fmt='%.7f')
+        print(f"Saved hyperparameters to {save_hyperparams_fn}")
+        end = time.time()
+        print(f"Time: {(end-start)/60.0} min")
+
+    def train_bin(self, bb):
+        print(f"Training bin {bb}")
+        #training_data = self.training_data_normmean[:,bb]
+        training_data = self.training_data[:,bb]
+        if self.log:
+            training_data = np.log10(training_data)
+        training_data /= np.mean(training_data)
+        mean = np.mean(training_data)
+        print('Mean:',mean)
+        kernel = self.get_kernel(np.full(self.nparams, 0.1))
+        gp = self.init_gp(self.training_params, self.gperr[bb], kernel, mean=mean)
+        hyps = trainer.gp_tr(self.training_params, 
+                    training_data, self.gperr[bb], 
+                    gp, optimize=True).p_op
+        print("Hyperparams:")            
+        print(hyps)
+        #self.hyperparams[bb, :] = hyps
+        return hyps
 
     def test(self, predict_savedir):
         if not self.testing_dir:
@@ -151,7 +196,7 @@ class Emulator:
         nhodpercosmo = 50
         #speedy params
         #CC = range(0, 1)
-        #nhodpercosmo = 1
+        #nhodpercosmo = 10
 
         HH = np.array(range(0, len(CC) * nhodnonolap))
         HH = HH.reshape(len(CC), nhodnonolap)
