@@ -82,7 +82,7 @@ def main():
 
     #err *= 100
     #save to both the directory and the mean, same error for both
-    np.savetxt(res_dir+"{}_error{}.dat".format(statistic, errtag), err)
+    #np.savetxt(res_dir+"{}_error{}.dat".format(statistic, errtag), err)
 
     #wps_box_avg /= len(hods)
     #        wps_grid[cosmo][box] += wps_box_avg

@@ -9,7 +9,7 @@ import gp_trainer as trainer
 
 class Emulator:
 
-    def __init__(self, statistic, training_dir, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, testmean=True, log=False):
+    def __init__(self, statistic, training_dir, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, testmean=True, log=False, mean=False):
         
         # set parameters
         self.statistic = statistic
@@ -20,6 +20,7 @@ class Emulator:
         self.testing_dir = testing_dir
         self.testmean = testmean
         self.log = log
+        self.mean = mean
 
         # load data
         self.load_training_data()
@@ -41,9 +42,27 @@ class Emulator:
         else:
             return name
 
+    def process_data(self, data_orig, bb):
+        data = data_orig.copy()
+        if self.log:
+            data = np.log10(data)
+        if self.mean:
+            data /= self.training_mean[bb]
+            #data -= 1
+        return data
+
+    # Make sure consistent with unprocess! 
+    # [opposite order and operations]
+    def unprocess_data(self, data_orig, bb):
+        data = data_orig.copy()
+        if self.mean:
+            #data += 1
+            data *= self.training_mean[bb]
+        if self.log:
+            data = 10**data
+        return data
 
     def predict(self, params_pred):
-
         if type(params_pred)==dict:
             params_arr = []
             param_names_ordered = ['Omega_m', 'Omega_b', 'sigma_8', 'h', 'n_s', 'N_eff', 'w',
@@ -57,18 +76,22 @@ class Emulator:
             raise ValueError("Params to predict at must be dict or array")
 
         params_arr = np.atleast_2d(params_arr)
-
         y_pred = np.zeros(self.nbins)
         for bb in range(self.nbins):
             # predict on all the training data in the bin - normalized by the mean as used for building emu
-            training_data_pred = self.training_data_normmean[:,bb]
-            if self.log:
-                training_data_pred = np.log10(training_data_pred)
+            #training_data_pred = self.training_data_normmean[:,bb]
+            #training_data_pred = self.training_data[:,bb]
+            training_data_pred = self.process_data(self.training_data[:,bb], bb)
+            #if self.log:
+            #    training_data_pred = np.log10(training_data_pred)
             val_pred, cov_pred = self.gps[bb].predict(training_data_pred, params_arr)
-            if self.log:
-                val_pred = 10**val_pred
+            val_pred = self.unprocess_data(val_pred, bb)
+            #if self.log:
+            #    val_pred = 10**val_pred
+            #val_pred += 1
             # multiply by mean to get back to original values
-            y_pred[bb] = val_pred * self.training_mean[bb]
+            #y_pred[bb] = val_pred * self.training_mean[bb]
+            y_pred[bb] = val_pred
 
         return y_pred
 
@@ -77,20 +100,18 @@ class Emulator:
         print("Rebuilding emulators")
         for bb in range(self.nbins):
             #training_data = self.training_data_normmean[:,bb]
-            training_data = self.training_data[:,bb]
-            if self.log:
-                training_data = np.log10(training_data)
-            print(np.mean(training_data))
-            training_data /= np.mean(training_data)
-            
+            training_data = self.process_data(self.training_data[:,bb], bb)
+            #if self.log:
+            #    training_data = np.log10(training_data)
+            #training_data /= np.mean(training_data)
+            #training_data -= 1
             mean = np.mean(training_data)
-            print(mean)
             kernel = self.get_kernel(np.full(self.nparams, 0.1))
             gp = self.init_gp(self.training_params, self.gperr[bb], kernel, mean=mean)
             self.gps[bb] = self.set_hyperparams(gp, self.training_params, 
                             self.gperr[bb], self.hyperparams[bb])
 
-            print("Computed GP {}".format(bb))
+            #print("Computed GP {}".format(bb))
 
 
     def train_serial(self, save_hyperparams_fn):
@@ -100,19 +121,16 @@ class Emulator:
         #for bb in range(1,self.nbins):
             print(f"Training bin {bb}")
             #training_data = self.training_data_normmean[:,bb]
-            training_data = self.training_data[:,bb]
-            if self.log:
-                training_data = np.log10(training_data)
-            training_data /= np.mean(training_data)
+            training_data = self.process_data(self.training_data[:,bb], bb)            
+            #if self.log:
+            #    training_data = np.log10(training_data)
+            #training_data /= np.mean(training_data)
             mean = np.mean(training_data)
-            print('Mean:',mean)
             kernel = self.get_kernel(np.full(self.nparams, 0.1))
             gp = self.init_gp(self.training_params, self.gperr[bb], kernel, mean=mean)
             hyps = trainer.gp_tr(self.training_params, 
                         training_data, self.gperr[bb], 
                         gp, optimize=True).p_op
-            print("Hyperparams:")            
-            print(hyps)
             self.hyperparams[bb, :] = hyps
 
         print("Done training!")
@@ -131,10 +149,8 @@ class Emulator:
         print("Mapping bins")
         res = pool.map(self.train_bin, range(self.nbins))
         print("Done training!")
-        print(res)
         for bb in range(self.nbins):
             self.hyperparams[bb, :] = res[bb]
-        print(self.hyperparams[-1, :])
         np.savetxt(save_hyperparams_fn, self.hyperparams, fmt='%.7f')
         print(f"Saved hyperparameters to {save_hyperparams_fn}")
         end = time.time()
@@ -143,19 +159,17 @@ class Emulator:
     def train_bin(self, bb):
         print(f"Training bin {bb}")
         #training_data = self.training_data_normmean[:,bb]
-        training_data = self.training_data[:,bb]
-        if self.log:
-            training_data = np.log10(training_data)
-        training_data /= np.mean(training_data)
+        training_data = self.process_data(self.training_data[:,bb], bb)
+        #if self.log:
+        #    training_data = np.log10(training_data)
+        #training_data /= np.mean(training_data)
+        #training_data -= 1
         mean = np.mean(training_data)
-        print('Mean:',mean)
         kernel = self.get_kernel(np.full(self.nparams, 0.1))
         gp = self.init_gp(self.training_params, self.gperr[bb], kernel, mean=mean)
         hyps = trainer.gp_tr(self.training_params, 
                     training_data, self.gperr[bb], 
                     gp, optimize=True).p_op
-        print("Hyperparams:")            
-        print(hyps)
         #self.hyperparams[bb, :] = hyps
         return hyps
 
@@ -164,9 +178,6 @@ class Emulator:
             raise ValueError('Must provide testing directory in emulator constructor!')
         for pid, tparams in self.testing_params.items():
             vals_pred = self.predict(tparams)
-            print(vals_pred)
-            print(self.testing_data[pid])
-            print()
             if self.testmean:
                 idtag = "cosmo_{}_HOD_{}_mean".format(pid[0], pid[1])
             else:
@@ -176,7 +187,6 @@ class Emulator:
 
             results = np.array([self.testing_radii, vals_pred])
             np.savetxt(pred_fn, results.T, delimiter=',', fmt=['%f', '%e']) 
-
 
     def load_training_data(self):
         print("Loading training data")
@@ -227,8 +237,11 @@ class Emulator:
                 idata += 1
 
         # mean of values in each bin (training_mean has length nbins)
-        self.training_mean = np.mean(self.training_data, axis=0)
-        self.training_data_normmean = self.training_data/self.training_mean
+        if self.log:
+            self.training_mean = np.mean(np.log10(self.training_data), axis=0)
+        else:
+            self.training_mean = np.mean(self.training_data, axis=0)
+        #self.training_data_normmean = self.training_data/self.training_mean
 
 
     def load_testing_data(self):
@@ -313,12 +326,15 @@ class Emulator:
         cosmo_names = ['Omega_m', 'Omega_b', 'sigma_8', 'h', 'n_s', 'N_eff', 'w']
         hod_names = ['M_sat', 'alpha', 'M_cut', 'sigma_logM', 'v_bc', 'v_bs', 'c_vir', 'f', 'f_env', 'delta_env', 'sigma_env']
 
-        cosmos_truth = np.loadtxt('../tables/cosmology_camb_test_box_full.dat')
-        hods_truth = np.loadtxt('../tables/HOD_test_np11_n1000_new_f_env.dat')
+        # wait should this be the training set??
+        # cosmos_truth = np.loadtxt('../tables/cosmology_camb_test_box_full.dat') # 7
+        # hods_truth = np.loadtxt('../tables/HOD_test_np11_n1000_new_f_env.dat') # 1000
+        cosmos_train = np.loadtxt('../tables/cosmology_camb_full.dat') # 40
+        hods_train = np.loadtxt('../tables/HOD_design_np11_n5000_new_f_env.dat') # 5000
 
         for pname in cosmo_names:
             pidx = cosmo_names.index(pname)
-            vals = cosmos_truth[:,pidx]
+            vals = cosmos_train[:,pidx]
             pmin = np.min(vals)
             pmax = np.max(vals)
             buf = (pmax-pmin)*0.1
@@ -326,7 +342,7 @@ class Emulator:
 
         for pname in hod_names:
             pidx = hod_names.index(pname)
-            vals = hods_truth[:,pidx]
+            vals = hods_train[:,pidx]
             pmin = np.min(vals)
             pmax = np.max(vals)
             buf = (pmax-pmin)*0.1

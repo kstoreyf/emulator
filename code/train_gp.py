@@ -15,8 +15,9 @@ statistic = 'wp'
 traintag = '_nonolap'
 #tag = '_emuobj'
 #tag = ''
-tag = '_logmeanmulti'
+tag = '_tnc'
 log = True
+mean = False
 errtag = '_10hod_test0'
 gptag = traintag + errtag + tag
 
@@ -30,5 +31,5 @@ save_hyperparams_fn = "../training_results/{}_training_results{}.dat".format(sta
 print("Training, savetag={}".format(gptag))
 
 emu = emulator.Emulator(statistic, training_dir=training_dir, 
-                            nbins=nbins, gperr=gperr, log=log)
+                            nbins=nbins, gperr=gperr, log=log, mean=mean)
 emu.train(save_hyperparams_fn)

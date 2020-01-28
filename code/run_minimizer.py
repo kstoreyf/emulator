@@ -3,22 +3,13 @@ import numpy as np
 import scipy
 import emcee
 import h5py 
-
-import chain
+from scipy import optimize
 import emulator
-import initialize_chain
 
 
 def main():
-    #chaintag = 'upf_c4h4_fenv_sigma8_long'
-    #chaintag = 'upf_c4h4_fenv_med_nolog'
-    #chain_fn = f'../chains/chains_{chaintag}.h5'
-    config_fn = f'../chains/chains_upf_config.cfg'
-    chain_fn = initialize_chain.main(config_fn)
-    run(chain_fn)
-
-def run(chain_fn, mode='chain'):
-
+    chaintag = 'upf_c4h4_fenv_med_nolog'
+    chain_fn = f'../chains/chains_{chaintag}.h5'
     f = h5py.File(chain_fn, 'r')
 
     ### data params
@@ -112,20 +103,52 @@ def run(chain_fn, mode='chain'):
 
     #diagonal covariance matrix from error
     cov = np.diag(emu.gperr)
+    #cov *= 10
+    print(cov)
+    print(cov.shape)
     start = time.time()
-    if mode=='chain':
-        res = chain.run_mcmc([emu], param_names, [y], [cov], fixed_params=fixed_params, truth=truth, nwalkers=nwalkers,
-            nsteps=nsteps, nburn=nburn, multi=multi, chain_fn=chain_fn)
-    elif mode=='minimize':
-        res = chain.run_minimizer([emu], param_names, [y], [cov], fixed_params=fixed_params, truth=truth, nwalkers=nwalkers,
-                nsteps=nsteps, nburn=nburn, multi=multi, chain_fn=chain_fn)
-    else:
-        raise ValueError(f"Mode {mode} not recognized!")
 
-    end = time.time()
-    print(f"Time: {(end-start)/60.0} min")
 
-    return res
+def minimize(emu, param_names, y, cov):
+    optimize.minimize(lnprob, )
+
+
+
+
+def lnprob(theta, *args):
+    lp = lnprior(theta, *args)
+    if not np.isfinite(lp):
+        return -np.inf
+    return lp + lnlike(theta, *args)
+    # to test likelihood issues
+    #return lp
+
+# use flat prior on bounds emu is built from. 0 if in (ln 1), -inf if out (ln 0)
+# x/theta: params proposed by sampler
+def lnprior(theta, param_names, *args):
+    
+    for pname, t in zip(param_names, theta):
+        # all emus should have same bounds, so just get first
+        low, high = _emus[0].get_param_bounds(pname)
+        if np.isnan(t) or t<low or t>high:
+            return -np.inf
+    return 0
+
+
+def lnlike(theta, param_names, fixed_params, ys, combined_inv_cov):
+    param_dict = dict(zip(param_names, theta))
+    param_dict.update(fixed_params)
+    emu_preds = []
+    for emu in _emus:
+        pred = emu.predict(param_dict)
+        emu_preds.append(pred)
+    emu_pred = np.hstack(emu_preds)
+    diff = np.array(emu_pred) - np.array(ys)
+    # TODO: sean doesn't have the 1/2 factor?
+    like = -np.dot(diff, np.dot(combined_inv_cov, diff.T).T) / 2.0
+    return like
+
+
 
 if __name__=='__main__':
     main()
