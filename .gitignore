@@ -9,3 +9,5 @@ CMASS*/
 *.pyc
 *.bak
 *.ipynb_checkpoints
+*.h5
+*.sw*

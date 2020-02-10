@@ -13,7 +13,7 @@ def main():
     #chaintag = 'upf_c4h4_fenv_sigma8_long'
     #chaintag = 'upf_c4h4_fenv_med_nolog'
     #chain_fn = f'../chains/chains_{chaintag}.h5'
-    config_fn = f'../chains/chains_upf_config.cfg'
+    config_fn = f'../chains/chains_wp_config.cfg'
     chain_fn = initialize_chain.main(config_fn)
     run(chain_fn)
 

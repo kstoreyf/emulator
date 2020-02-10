@@ -38,7 +38,13 @@ def lnlike(theta, param_names, fixed_params, ys, combined_inv_cov):
     emu_pred = np.hstack(emu_preds)
     diff = np.array(emu_pred) - np.array(ys)
     # TODO: sean doesn't have the 1/2 factor?
+    print("like")
+    print(emu_pred)
+    print(ys)
     like = -np.dot(diff, np.dot(combined_inv_cov, diff.T).T) / 2.0
+    print(diff)
+    print(combined_inv_cov)
+    print(like)
     return like
 
 

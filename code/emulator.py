@@ -18,7 +18,7 @@ class Emulator:
         self.gps = [None]*nbins
         self.training_dir = training_dir
         self.testing_dir = testing_dir
-        self.testmean = testmean
+        self.testmean = testmean # use the mean of the test boxes (recommended)
         self.log = log
         self.mean = mean
 

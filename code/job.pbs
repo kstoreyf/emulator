@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -N upf_c4h4_fenv_med_nolog
+#PBS -N wp_c4h4_fenv_sigma8_short_log
 #PBS -l walltime=40:00:00
 #PBS -l nodes=1:ppn=24
 #PBS -m ae
