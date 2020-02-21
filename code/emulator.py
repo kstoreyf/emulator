@@ -331,6 +331,8 @@ class Emulator:
         # hods_truth = np.loadtxt('../tables/HOD_test_np11_n1000_new_f_env.dat') # 1000
         cosmos_train = np.loadtxt('../tables/cosmology_camb_full.dat') # 40
         hods_train = np.loadtxt('../tables/HOD_design_np11_n5000_new_f_env.dat') # 5000
+        hods_train[:, 0] = np.log10(hods_train[:, 0])
+        hods_train[:, 2] = np.log10(hods_train[:, 2])
 
         for pname in cosmo_names:
             pidx = cosmo_names.index(pname)
