@@ -11,7 +11,7 @@ res_dir = '../../clust/results_{}/'.format(statistic)
 plot_dir = '../plots/plots_2019-10-10'
 ytag = '_nonolap_10hod_test0_mean_test0'
 #savetag = '_msat_fenv'
-savetag = '_sigmalogM_mcut'
+savetag = '_sigmalogM_mcut_nchain3000'
 traintag = '_nonolap'
 nhodpercosmo = 50
 
@@ -85,7 +85,7 @@ print(cov.shape)
 #nsteps = 200
 nwalkers = 30
 nburn = 50
-nsteps = 300
+nsteps = 3000
 #nsteps = 10
 chain.run_mcmc([emu], param_names, [y], [cov], rbins, fixed_params=fixed_params, truth=truth, nwalkers=nwalkers,
         nsteps=nsteps, nburn=nburn, plot_fn=plot_fn)
