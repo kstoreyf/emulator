@@ -20,14 +20,16 @@ class gp_tr(object):
         #self.p0 = gp.kernel.pars
         self.p0 = gp.kernel.get_parameter_vector() # is this the same thing in new george??
         # self.gp.compute(self.x)
-
+        print(self.p0)
         if optimize == True and MCMC == True:
             print("Both optimization and MCMC are chosen, only optimization will run...")
             MCMC = False
 
         elif optimize == True and MCMC == False:
             self.bnd = [np.log((1e-6, 1e+6)) for i in range(len(self.p0))]
-            self.results = op.minimize(self.nll, self.p0, jac=self.grad_nll, method='L-BFGS-B', bounds=self.bnd)
+            self.results = op.minimize(self.nll, self.p0, method='L-BFGS-B', bounds=self.bnd)
+            #self.results = op.minimize(self.nll, self.p0, method='TNC', bounds=self.bnd)
+            #self.results = op.minimize(self.nll, self.p0, jac=self.grad_nll, method='L-BFGS-B', bounds=self.bnd)
             #self.gp.kernel[:] = self.results.x
             self.gp.set_parameter_vector(self.results.x)
             self.p_op = self.results.x
@@ -39,20 +41,20 @@ class gp_tr(object):
             ndim = len(self.p0)
             nwalkers = 2 * ndim
             Nstep = 5
-            print(ndim, nwalkers)
+            print((ndim, nwalkers))
             position = [self.p0 + 1e-3 * np.random.randn(len(self.p0)) for jj in range(nwalkers)]
             sampler = emcee.EnsembleSampler(nwalkers, ndim, self.lnprob)
             sampler.run_mcmc(position, Nstep)
             samples = sampler.chain[:, :, :].reshape((-1, ndim))
             chi2p = sampler.lnprobability[:, :].reshape(-1)
 
-            mcmc_data = zip(-chi2p, samples)
+            mcmc_data = list(zip(-chi2p, samples))
             mcmc_data = np.array(mcmc_data)
             self.p_op1 = mcmc_data[np.where(mcmc_data[:, 0] == min(mcmc_data[:, 0]))]
             #self.p_op = self.p_op[0]
             #??
-            print self.p_op1
-            print self.p_op1[0][1]
+            print(self.p_op1)
+            print(self.p_op1[0][1])
             self.p_op = self.p_op1[0][1]
             if save == True:
                 np.savetxt(savename + "_mcmc.dat", mcmc_data, fmt='%.6e')
@@ -60,8 +62,11 @@ class gp_tr(object):
     def nll(self, p):
         #self.gp.kernel[:] = p
         self.gp.set_parameter_vector(p)
-        ll = self.gp.lnlikelihood(self.y, quiet=True)
-        return -ll if np.isfinite(ll) else 1e25
+        #ll = self.gp.lnlikelihood(self.y, quiet=True)
+        self.pre, self.cov = self.gp.predict(self.y, self.x * 1.0)
+        ll = sum(((self.pre - self.y) / (self.yerr)) ** 2.0)
+        return ll if np.isfinite(ll) else 1e25
+        #return -ll if np.isfinite(ll) else 1e25
 
     def grad_nll(self, p):
         #self.gp.kernel[:] = p

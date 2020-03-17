@@ -15,18 +15,12 @@ t1 = time()
 
 
 statistic = 'upf'
-#statistic = 'upf'
 
-#traintag = '_cos0'
 traintag = '_nonolap'
 nhodpercosmo = 50
-#traintag = '_sample50v4'
-#testtag = '_hod1_mean'
-#testtag = '_cos0_mean'
 testtag = '_mean_test0'
 #hod = 0
 hod = None
-#errtag = ''
 errtag = '_10hod_test0'
 tag = ''
 

@@ -13,6 +13,24 @@ def main():
     plot_error_sim()
 
 
+def plot_wp_simple(rs, vals, saveto=None):
+    plt.figure()
+    rs = np.array(rs)
+    vals = np.array(vals)
+    if len(rs.shape)==1:
+        rs = [rs]
+        vals = [vals]
+    for i in range(len(rs)):
+        plt.plot(rs[i], vals[i], color='blue')
+    plt.xscale('log')
+    plt.yscale('log')
+    
+    plt.xlabel(r'$r_p$ (Mpc/h)')
+    plt.ylabel(r'$w_p$($r_p$)')
+    if saveto:
+        plt.savefig(saveto)
+
+
 def plot_predic_statistic():
 
     statistic = 'vpf'
@@ -103,7 +121,7 @@ def plot_predic():
     #rps.append(rp)
     #wps.append(wpmean)
     #labels.append('mean')
-    print labels
+    print(labels)
     plot_wprp(rps, wps, labels, wp_tocompare=wpmean)
 
 
@@ -185,7 +203,7 @@ def plot_error():
     fnmean = "../wp_covar_results/wp_covar_mean.dat"
     rp, wpmean = np.loadtxt(fnmean, unpack=False)
 
-    print mean_err
+    print(mean_err)
     c1 = 'grey'
     c2 = 'lightgrey'
     plt.semilogx(rp, sig1p, c=c1)
@@ -211,7 +229,7 @@ def plot_error():
     shots = []
     for cosmo in cosmos:
         #wps_cosmo_avg = []
-        print cosmo
+        print(cosmo)
         for box in boxes:
             wps_box_avg = np.zeros(nbins)
             for hod in hods:
@@ -247,11 +265,11 @@ def plot_error():
         for box in boxes:
             diffmeans.append((wp_cosmo_avg - wps_grid[cosmo][box])/wp_cosmo_avg)
     sample_var = np.var(diffmeans, axis=0)
-    print sample_var
+    print(sample_var)
 
-    print shots
+    print(shots)
     shot_noise = np.mean(shots, axis=0)
-    print shot_noise
+    print(shot_noise)
 
     # shot_noise.append(np.var(wps_cosmo, axis=0))
     #
@@ -297,7 +315,7 @@ def plot_error_analytic():
     fnmean = "../wp_covar_results/wp_covar_mean.dat"
     rp, wpmean = np.loadtxt(fnmean, unpack=False)
 
-    print mean_err
+    print(mean_err)
     plt.loglog(rp, sig1p, color='red', label='prediction error, 1 sigma noise')
     # plt.semilogx(rp, sig1m)
     # plt.semilogx(rp, sig2p)
@@ -347,7 +365,7 @@ def plot_error_sim():
         fnmean = "../wp_covar_results/wp_covar_mean.dat"
         rp, wpmean = np.loadtxt(fnmean, unpack=False)
 
-        print mean_err
+        print(mean_err)
         #plt.semilogx(rp, mean_err, color='black', label='mean')
         plt.semilogx(rp, sig1p, label='Version {}, {} hods, version {}'
                      .format(Version, numhod, version))
@@ -396,7 +414,7 @@ def get_training_error():
     shots = []
     for cosmo in cosmos:
         # wps_cosmo_avg = []
-        print cosmo
+        print(cosmo)
         for box in boxes:
             wps_box_avg = np.zeros(nbins)
             for hod in hods:
@@ -431,11 +449,11 @@ def get_training_error():
         for box in boxes:
             diffmeans.append((wp_cosmo_avg - wps_grid[cosmo][box]) / wp_cosmo_avg)
     sample_var = np.var(diffmeans, axis=0)
-    print sample_var
+    print(sample_var)
 
-    print shots
+    print(shots)
     shot_noise = np.mean(shots, axis=0)
-    print shot_noise
+    print(shot_noise)
 
     return sample_var, shot_noise, diffmeans
 

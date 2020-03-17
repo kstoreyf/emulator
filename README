@@ -1,0 +1,10 @@
+### emulator
+
+How to build an emulator
+- Generate training data in ../clust/results_{stat}/training_{stat}{traintag}
+- Generate testing data in ../clust/results_{stat}/testing_{stat}
+- Calculate error with calc_error.py, save to file
+- Run train_gp.py with proper parameters
+- Compute means per box of testing data, with calc_means.py
+- Run test_gp.py with proper parameters
+- Plot in notebook, see wp.ipynb as example
