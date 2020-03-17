@@ -9,7 +9,8 @@ def main():
 
     fixed_hod = False
     testtag = ''
-    errtag = '_10hod_test0'
+    errtag = '_80hod_test0'
+    nhods = 80
 
     res_dir = '../../clust/results_{}/'.format(statistic)
     testing_dir = '../../clust/results_{}/testing_{}{}/'.format(statistic, statistic, testtag)
@@ -18,7 +19,7 @@ def main():
         hods = [1]
         cosmos = list(range(7))
     else:
-        hods = list(range(10))
+        hods = list(range(nhods))
         cosmos = list(range(7))
 
     ncosmos = len(cosmos)
@@ -82,8 +83,8 @@ def main():
 
     #err *= 100
     #save to both the directory and the mean, same error for both
-    #np.savetxt(res_dir+"{}_error{}.dat".format(statistic, errtag), err)
-
+    np.savetxt(res_dir+"{}_error{}.dat".format(statistic, errtag), err)
+    
     #wps_box_avg /= len(hods)
     #        wps_grid[cosmo][box] += wps_box_avg
 

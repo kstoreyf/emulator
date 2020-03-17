@@ -15,12 +15,14 @@ statistic = 'wp'
 traintag = '_nonolap'
 #tag = '_emuobj'
 #tag = ''
-tag = '_tnc'
+tag = '_log_kM32ExpConst1_50hod'
+nhod = 50
 log = True
 mean = False
-errtag = '_10hod_test0'
+errtag = '_100hod_test0'
 gptag = traintag + errtag + tag
 
+nthreads = 9
 nbins = 9
 
 res_dir = '../../clust/results_{}/'.format(statistic)
@@ -31,5 +33,5 @@ save_hyperparams_fn = "../training_results/{}_training_results{}.dat".format(sta
 print("Training, savetag={}".format(gptag))
 
 emu = emulator.Emulator(statistic, training_dir=training_dir, 
-                            nbins=nbins, gperr=gperr, log=log, mean=mean)
-emu.train(save_hyperparams_fn)
+                            nbins=nbins, gperr=gperr, log=log, mean=mean, nhod=nhod)
+emu.train(save_hyperparams_fn, nthreads=nthreads)

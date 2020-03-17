@@ -110,8 +110,14 @@ def run(chain_fn, mode='chain'):
     emu.build()
     print("Emulator built")
 
-    #diagonal covariance matrix from error
-    cov = np.diag(emu.gperr)
+    #cov is correlation matrix (reduced coviance) from minerva mocks
+    #diagonals are from input calculated error
+    cov = np.loadtxt(f"results_minerva/corrmat_minerva_{statistic}.dat")
+    for i in range(len(cov)):
+        cov[i] = emu.gperr[i]
+    #cov = np.diag(emu.gperr) 
+    
+    
     start = time.time()
     if mode=='chain':
         res = chain.run_mcmc([emu], param_names, [y], [cov], fixed_params=fixed_params, truth=truth, nwalkers=nwalkers,

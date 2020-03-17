@@ -9,7 +9,7 @@ import gp_trainer as trainer
 
 class Emulator:
 
-    def __init__(self, statistic, training_dir, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, testmean=True, log=False, mean=False):
+    def __init__(self, statistic, training_dir, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, testmean=True, log=False, mean=False, nhod=100):
         
         # set parameters
         self.statistic = statistic
@@ -21,6 +21,7 @@ class Emulator:
         self.testmean = testmean # use the mean of the test boxes (recommended)
         self.log = log
         self.mean = mean
+        self.nhod = nhod
 
         # load data
         self.load_training_data()
@@ -33,7 +34,8 @@ class Emulator:
         if hyperparams:
             self.hyperparams = self.load_file_or_obj(hyperparams) #may still be None
         else:
-            self.hyperparams = np.empty((nbins, self.nparams+1))
+            kernel = self.get_kernel(np.full(self.nparams, 0.1))
+            self.hyperparams = np.empty((nbins, len(kernel)))
 
 
     def load_file_or_obj(self, name):
@@ -149,6 +151,7 @@ class Emulator:
         print("Mapping bins")
         res = pool.map(self.train_bin, range(self.nbins))
         print("Done training!")
+        print(np.array(res).shape)
         for bb in range(self.nbins):
             self.hyperparams[bb, :] = res[bb]
         np.savetxt(save_hyperparams_fn, self.hyperparams, fmt='%.7f')
@@ -196,21 +199,20 @@ class Emulator:
         hods[:, 0] = np.log10(hods[:, 0])
         hods[:, 2] = np.log10(hods[:, 2])
         nhodparams = hods.shape[1]
-        nhodnonolap = 100
-
+        nhodnonolap = self.nhod
         # cosmology params (40 rows, 7 cols)
         cosmos = np.loadtxt("../tables/cosmology_camb_full.dat")
         ncosmoparams = cosmos.shape[1]
 
         CC = range(0, cosmos.shape[0])
-        nhodpercosmo = 50
+        nhodpercosmo = 100
         #speedy params
         #CC = range(0, 1)
         #nhodpercosmo = 10
 
-        HH = np.array(range(0, len(CC) * nhodnonolap))
-        HH = HH.reshape(len(CC), nhodnonolap)
-        HH = HH[:, 0:nhodpercosmo]
+        HH = np.array(range(0, len(CC) * nhodpercosmo))
+        HH = HH.reshape(len(CC), nhodpercosmo)
+        HH = HH[:, 0:nhodnonolap]
 
         self.nparams = nhodparams + ncosmoparams
         print(f"Nparams: {self.nparams}")
@@ -256,7 +258,7 @@ class Emulator:
 
         CC_test = range(0, 7)
         # TODO: add more tests, for now just did first 10 hod
-        HH_test = range(0, 10)
+        HH_test = range(0, 100)
 
         self.nparams_test = nhodparams_test + ncosmoparams_test
         print(f"Nparams: {self.nparams_test}")
@@ -306,14 +308,22 @@ class Emulator:
 
     # 15 initial values for the 7 hod and 8 cosmo params
     def get_kernel(self, p0):
-        #k1 = kernels.ExpSquaredKernel(p0, ndim=len(p0))
+        
+        k1 = kernels.ExpSquaredKernel(p0, ndim=len(p0))
         k2 = kernels.Matern32Kernel(p0, ndim=len(p0))
         #k3 = kernels.ConstantKernel(0.1, ndim=len(p0))
-        # k4 = kernels.WhiteKernel(0.1, ndim=len(p0))
+        #k4 = kernels.WhiteKernel(0.1, ndim=len(p0))
         k5 = kernels.ConstantKernel(0.1, ndim=len(p0))
-        kernel = k2 + k5
-        # kernel = np.var(y)*k1
+        #kernel = k2 + k5
+        #print(k2+k5)
+        #kernel = k1 + k2 #2p0
         #print(kernel)
+        kernel = k1*k5 + k2
+        #kernel = 0.1*k1 + k2 + k3
+        # kernel = np.var(y)*k1
+        #print(len(kernel))
+        #print(kernel)
+        #self.hyperparams = np.empty((self.nbins, len(kernel)))
         return kernel
 
 

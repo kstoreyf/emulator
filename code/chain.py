@@ -29,6 +29,7 @@ def lnprior(theta, param_names, *args):
 
 
 def lnlike(theta, param_names, fixed_params, ys, combined_inv_cov):
+    print(theta)
     param_dict = dict(zip(param_names, theta))
     param_dict.update(fixed_params)
     emu_preds = []
@@ -121,6 +122,7 @@ def run_mcmc(emus, param_names, ys, covs, fixed_params={}, truth={}, nwalkers=10
     
     ncpu = mp.cpu_count()
     print(f"{ncpu} CPUs")
+    print('truth:', truth)
     with mp.Pool() as pool:
         if multi:
             sampler = emcee.EnsembleSampler(nwalkers, num_params, lnprob, args=args, pool=pool)
@@ -128,6 +130,8 @@ def run_mcmc(emus, param_names, ys, covs, fixed_params={}, truth={}, nwalkers=10
             sampler = emcee.EnsembleSampler(nwalkers, num_params, lnprob, args=args)
         # lnprob(p, means, icov)
         p0 = _random_initial_guess(param_names, nwalkers, num_params)
+        print(param_names)
+        print(len(p0))
         print("Initial:", p0)
 
         pos, prob, state = sampler.run_mcmc(p0, nburn)

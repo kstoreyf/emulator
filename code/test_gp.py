@@ -8,13 +8,15 @@ import emulator
 statistic = 'wp'
 traintag = '_nonolap'
 testtag = '_mean_test0'
-errtag = '_10hod_test0'
+errtag = '_100hod_test0'
 testmean = True
 
 #tag = '_emuobj'
 #tag = '_zeromean'
 #tag = '_logleastsq'
-tag = '_tnc'
+#tag = '_log'
+nhod = 10
+tag = '_log_kM32ExpConst1_{}hod'.format(nhod)
 log = True
 mean = False
 gptag = traintag + errtag + tag
@@ -30,6 +32,6 @@ testing_dir = '{}testing_{}{}/'.format(res_dir, statistic, testtag)
 predict_savedir = f"../testing_results/predictions_{statistic}{acctag}/"
 os.makedirs(predict_savedir, exist_ok=True)
 
-emu = emulator.Emulator(statistic, training_dir=training_dir, testing_dir=testing_dir, gperr=gperr, testmean=testmean, hyperparams=hyperparams, log=log, mean=mean)
+emu = emulator.Emulator(statistic, training_dir=training_dir, testing_dir=testing_dir, gperr=gperr, testmean=testmean, hyperparams=hyperparams, log=log, mean=mean, nhod=nhod)
 emu.build()
 emu.test(predict_savedir)

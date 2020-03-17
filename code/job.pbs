@@ -1,7 +1,8 @@
 #!/bin/bash
-#PBS -N wp_c4h4_fenv_sigma8_short_log
+#PBS -N test_gp
+##PBS -N wp_c4h4_sigma8_short
 #PBS -l walltime=40:00:00
-#PBS -l nodes=1:ppn=24
+#PBS -l nodes=1:ppn=1
 #PBS -m ae
 #PBS -o output/$PBS_JOBNAME.out
 #PBS -j oe
@@ -11,6 +12,7 @@ PATH=$PBS_O_PATH
 echo $PBS_O_WORKDIR
 echo 'starting'
 echo -n 'Job is running on node '; cat $PBS_NODEFILE
-python run_chain.py
+#python run_chain.py
+python test_gp.py
 echo 'done'
 
