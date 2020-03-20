@@ -9,8 +9,9 @@ import gp_trainer as trainer
 
 class Emulator:
 
-    def __init__(self, statistic, training_dir, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, testmean=True, log=False, mean=False, nhod=100):
+    def __init__(self, statistic, training_dir, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, testmean=True, log=False, mean=False, nhod=80, kernel_name='', nhod_test=100):
         
+        print("george version:", george.__version__) 
         # set parameters
         self.statistic = statistic
         self.fixedparams = fixed_params
@@ -22,6 +23,8 @@ class Emulator:
         self.log = log
         self.mean = mean
         self.nhod = nhod
+        self.nhod_test = nhod_test
+        self.kernel_name = kernel_name
 
         # load data
         self.load_training_data()
@@ -84,15 +87,8 @@ class Emulator:
             #training_data_pred = self.training_data_normmean[:,bb]
             #training_data_pred = self.training_data[:,bb]
             training_data_pred = self.process_data(self.training_data[:,bb], bb)
-            #if self.log:
-            #    training_data_pred = np.log10(training_data_pred)
             val_pred, cov_pred = self.gps[bb].predict(training_data_pred, params_arr)
             val_pred = self.unprocess_data(val_pred, bb)
-            #if self.log:
-            #    val_pred = 10**val_pred
-            #val_pred += 1
-            # multiply by mean to get back to original values
-            #y_pred[bb] = val_pred * self.training_mean[bb]
             y_pred[bb] = val_pred
 
         return y_pred
@@ -124,13 +120,16 @@ class Emulator:
             print(f"Training bin {bb}")
             #training_data = self.training_data_normmean[:,bb]
             training_data = self.process_data(self.training_data[:,bb], bb)            
-            #if self.log:
-            #    training_data = np.log10(training_data)
-            #training_data /= np.mean(training_data)
             mean = np.mean(training_data)
             kernel = self.get_kernel(np.full(self.nparams, 0.1))
             gp = self.init_gp(self.training_params, self.gperr[bb], kernel, mean=mean)
-            hyps = trainer.gp_tr(self.training_params, 
+            if george.__version__=='0.3.1':
+                tr = trainer.gp_tr(self.training_params, 
+                        training_data, self.gperr[bb], 
+                        gp, optimize=True)
+                hyps = tr.gp.kernel.get_parameter_vector()
+            elif george.__version__=='0.2.1':
+                hyps = trainer.gp_tr(self.training_params, 
                         training_data, self.gperr[bb], 
                         gp, optimize=True).p_op
             self.hyperparams[bb, :] = hyps
@@ -170,10 +169,17 @@ class Emulator:
         mean = np.mean(training_data)
         kernel = self.get_kernel(np.full(self.nparams, 0.1))
         gp = self.init_gp(self.training_params, self.gperr[bb], kernel, mean=mean)
-        hyps = trainer.gp_tr(self.training_params, 
+        if george.__version__=='0.3.1':
+            tr = trainer.gp_tr(self.training_params, 
+                    training_data, self.gperr[bb], 
+                    gp, optimize=True)
+            hyps = tr.gp.kernel.get_parameter_vector()
+        elif george.__version__=='0.2.1':
+            hyps = trainer.gp_tr(self.training_params, 
                     training_data, self.gperr[bb], 
                     gp, optimize=True).p_op
         #self.hyperparams[bb, :] = hyps
+        print('hyps, bin',bb,':',hyps)
         return hyps
 
     def test(self, predict_savedir):
@@ -258,7 +264,7 @@ class Emulator:
 
         CC_test = range(0, 7)
         # TODO: add more tests, for now just did first 10 hod
-        HH_test = range(0, 100)
+        HH_test = range(0, self.nhod_test)
 
         self.nparams_test = nhodparams_test + ncosmoparams_test
         print(f"Nparams: {self.nparams_test}")
@@ -301,29 +307,29 @@ class Emulator:
 
 
     def set_hyperparams(self, gp, training_params, err, hyperparams):
-        gp.set_parameter_vector(hyperparams)
+        if george.__version__=='0.3.1':
+            gp.set_parameter_vector(hyperparams)
+        elif george.__version__=='0.2.1':
+            #self.p_op = hyperparams
+            gp.kernel.vector = hyperparams
         gp.compute(training_params, err)
         return gp
 
 
     # 15 initial values for the 7 hod and 8 cosmo params
     def get_kernel(self, p0):
-        
+        if george.__version__=='0.3.1':
+            p0 = np.exp(p0) 
         k1 = kernels.ExpSquaredKernel(p0, ndim=len(p0))
         k2 = kernels.Matern32Kernel(p0, ndim=len(p0))
-        #k3 = kernels.ConstantKernel(0.1, ndim=len(p0))
+        k3 = kernels.ConstantKernel(0.1, ndim=len(p0))
         #k4 = kernels.WhiteKernel(0.1, ndim=len(p0))
         k5 = kernels.ConstantKernel(0.1, ndim=len(p0))
-        #kernel = k2 + k5
-        #print(k2+k5)
-        #kernel = k1 + k2 #2p0
-        #print(kernel)
-        kernel = k1*k5 + k2
-        #kernel = 0.1*k1 + k2 + k3
-        # kernel = np.var(y)*k1
-        #print(len(kernel))
-        #print(kernel)
-        #self.hyperparams = np.empty((self.nbins, len(kernel)))
+        
+        kernel_dict = {'M32ExpConst': k1*k5 + k2,
+                   'M32ExpConst2': k1*k5 + k2 + k3,
+                   'M32Const': k2 + k5}
+        kernel = kernel_dict[self.kernel_name]
         return kernel
 
 

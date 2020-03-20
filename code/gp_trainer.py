@@ -17,22 +17,27 @@ class gp_tr(object):
         self.y = y
         self.yerr = yerr
         self.gp = gp
-        #self.p0 = gp.kernel.pars
-        self.p0 = gp.kernel.get_parameter_vector() # is this the same thing in new george??
+        if george.__version__=='0.3.1':
+            self.p0 = gp.kernel.get_parameter_vector()
+        elif george.__version__=='0.2.1':
+            self.p0 = gp.kernel.pars
         # self.gp.compute(self.x)
-        print(self.p0)
         if optimize == True and MCMC == True:
             print("Both optimization and MCMC are chosen, only optimization will run...")
             MCMC = False
 
         elif optimize == True and MCMC == False:
             self.bnd = [np.log((1e-6, 1e+6)) for i in range(len(self.p0))]
+            print("self.p0:", self.p0)
             self.results = op.minimize(self.nll, self.p0, method='L-BFGS-B', bounds=self.bnd)
             #self.results = op.minimize(self.nll, self.p0, method='TNC', bounds=self.bnd)
             #self.results = op.minimize(self.nll, self.p0, jac=self.grad_nll, method='L-BFGS-B', bounds=self.bnd)
             #self.gp.kernel[:] = self.results.x
-            self.gp.set_parameter_vector(self.results.x)
-            self.p_op = self.results.x
+            print("results.x :", self.results.x)
+            if george.__version__=='0.3.1':
+                self.gp.set_parameter_vector(self.results.x)
+            elif george.__version__=='0.2.1':
+                self.p_op = self.results.x
 
         elif optimize == False and MCMC == False:
             self.p_op = self.gp.kernel.vector
@@ -51,35 +56,44 @@ class gp_tr(object):
             mcmc_data = list(zip(-chi2p, samples))
             mcmc_data = np.array(mcmc_data)
             self.p_op1 = mcmc_data[np.where(mcmc_data[:, 0] == min(mcmc_data[:, 0]))]
-            #self.p_op = self.p_op[0]
-            #??
-            print(self.p_op1)
-            print(self.p_op1[0][1])
-            self.p_op = self.p_op1[0][1]
+            if george.__version__=='0.3.1':
+                self.p_op = self.p_op1[0][1]
+            elif george.__version__=='0.2.1':
+                self.p_op = self.p_op[0]
+
             if save == True:
                 np.savetxt(savename + "_mcmc.dat", mcmc_data, fmt='%.6e')
 
     def nll(self, p):
-        #self.gp.kernel[:] = p
-        self.gp.set_parameter_vector(p)
-        #ll = self.gp.lnlikelihood(self.y, quiet=True)
-        self.pre, self.cov = self.gp.predict(self.y, self.x * 1.0)
-        ll = sum(((self.pre - self.y) / (self.yerr)) ** 2.0)
-        return ll if np.isfinite(ll) else 1e25
-        #return -ll if np.isfinite(ll) else 1e25
+        if george.__version__=='0.3.1':
+            self.gp.set_parameter_vector(p)
+            #self.pre, self.cov = self.gp.predict(self.y, self.x * 1.0)
+            #ll = sum(((self.pre - self.y) / (self.yerr)) ** 2.0)
+            #return ll if np.isfinite(ll) else 1e25
+            ll = self.gp.log_likelihood(self.y, quiet=True)
+            return -ll if np.isfinite(ll) else 1e25
+        elif george.__version__=='0.2.1':
+            self.gp.kernel[:] = p
+            ll = self.gp.lnlikelihood(self.y, quiet=True)
+            return -ll if np.isfinite(ll) else 1e25
 
     def grad_nll(self, p):
-        #self.gp.kernel[:] = p
-        self.gp.set_parameter_vector(p)
-        return -self.gp.grad_lnlikelihood(self.y, quiet=True)
+        if george.__version__=='0.3.1':
+            self.gp.set_parameter_vector(p)
+            return -self.gp.grad_log_likelihood(self.y, quiet=True)
+        elif george.__version__=='0.2.1':
+            self.gp.kernel[:] = p
+            return -self.gp.grad_lnlikelihood(self.y, quiet=True)
 
     def lnprob(self, p):
         if np.any((-5.0 > p) + (p > 5.0)):
             return -np.inf
         lnprior = 0.0
-        # self.gp.compute(self.x)
-        #self.gp.kernel[:] = p
-        self.gp.set_parameter_vector(p)
+        if george.__version__=='0.3.1':
+            self.gp.set_parameter_vector(p)
+        if george.__version__=='0.2.1':
+            #self.gp.compute(self.x)
+            self.gp.kernel[:] = p
         #print(self.gp.lnlikelihood(self.y, quiet=True))
         return lnprior + self.gp.lnlikelihood(self.y, quiet=True)
 

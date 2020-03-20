@@ -2,7 +2,8 @@ import numpy as np
 import os
 
 
-statistic = 'wp'
+#statistic = 'wp'
+statistic = 'upf'
 
 testtag = ''
 meantag = '_test0'

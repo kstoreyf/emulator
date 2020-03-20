@@ -11,3 +11,4 @@ CMASS*/
 *.ipynb_checkpoints
 *.h5
 *.sw*
+*.dat

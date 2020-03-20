@@ -1,0 +1,18 @@
+#!/bin/bash
+#PBS -N train_george2_hod50_kM32ExpConst2
+#PBS -l walltime=40:00:00
+#PBS -l nodes=1:ppn=1
+#PBS -m ae
+#PBS -o output/$PBS_JOBNAME.out
+#PBS -j oe
+
+cd $PBS_O_WORKDIR
+PATH=$PBS_O_PATH
+echo $PBS_O_WORKDIR
+echo 'starting'
+echo -n 'Job is running on node '; cat $PBS_NODEFILE
+conda activate george2
+python gp_wp_cos_hod_9bins.py
+echo 'done'
+
+#python test_gp.py

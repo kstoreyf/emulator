@@ -5,12 +5,12 @@ import numpy as np
 
 def main():
 
-    statistic = 'wp'
+    statistic = 'upf'
 
     fixed_hod = False
     testtag = ''
-    errtag = '_80hod_test0'
-    nhods = 80
+    errtag = '_100hod_test0'
+    nhods = 100
 
     res_dir = '../../clust/results_{}/'.format(statistic)
     testing_dir = '../../clust/results_{}/testing_{}{}/'.format(statistic, statistic, testtag)
