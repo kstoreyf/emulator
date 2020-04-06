@@ -12,3 +12,7 @@ CMASS*/
 *.h5
 *.sw*
 *.dat
+*.aux
+*.synctex.gz
+*.fdb_latexmk
+*.fls

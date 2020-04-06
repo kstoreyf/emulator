@@ -1,0 +1,80 @@
+\documentclass[12pt]{article}
+
+\title{Error Computation for Emulation}
+
+\begin{document}
+\maketitle
+
+\section{Introduction and Notation}
+
+This document outlines the error measurements used in our emulation procedure.
+
+The test set contains mock catalogs with $C=7$ different cosmologies $c$. There are $B=5$ boxes (or realizations) $b$ for each cosmology. These are each populated with $H=100$ different halo occupation distribution (HOD) models $h$, the same 100 for each cosmology. (There are also 10 random seeds used per HOD, but for now we only use one. We'll worry about this later.)
+
+We are concerned with a clustering statistic $y$. We use $y_{meas}$ to mean the statistic computed on a mock or data. We use $y_{pred}$ to mean the emulator prediction for that statistic. We take $y$ to have $P$ dimensions (bins in our case), indexed by $p$ (or $p'$).
+
+The statistic is computed on all $7 \times 5 \times 100 = 3500$ mocks. The statistic is averaged over the 5 boxes, so our final test set contains $N=700$ statistics. We will denote these with index $n$.
+
+\section{Test set error}
+
+The error on the test set is computed as follows. 
+For each cosmology, compute the mean statistic over the boxes.
+ Compute the deviation from this mean for each of the boxes, defined as the fractional error between the box statistic and the mean statistic for that cosmology. 
+ Do this for every HOD. 
+ The test set error is the standard deviation of all of these deviations from the mean.
+\begin{eqnarray}
+    \bar{y}_{c,h} &=& \frac{1}{B} \sum_b^B {y_{b,c,h}} \\
+    d_{c,h} &=& \frac{ {y_{b,c,h} - \bar{y}_{c,h}} } {\bar{y}_{c,h}} \\
+    \bar{d} &=& \frac{1}{CH} \sum_{c}^C \sum_{h}^H d_{c,h} \\
+    \sigma_{test} &=& \sqrt{ \frac{1}{CH} \sum_{c}^C \sum_{h}^H (d_{c,h} - \bar{d})^2 }
+\end{eqnarray}
+
+This test set error $\sigma_{test}$ is used as an input to the Gassian Process to represent the error on the \emph{training set}. 
+We do this because have a better handle on this error due to the multiple realizations of the test set.
+We note that the procedure outlined here estimates the sample variance contribution to the error.
+The random seeds we have not yet included estimate the shot noise contribution; we will update with this later.
+
+
+\section{Emulator performance and error}
+
+The overall emulator performance $\sigma_{perf}$ is defined as
+\begin{equation}
+    \sigma_{perf}^2 = \sigma_{emu}^2 + \sigma_{test}^2
+\end{equation}
+
+We obtain this with the RMS error of the test set emulation:
+\begin{equation}
+    \sigma_{perf} = \sum_t^N \sqrt{ \frac{\big( y_{n,pred}^2 - y_{n,meas}^2 \big)} {N}}
+\end{equation}
+
+We care about the emulator error $\sigma_{emu}$ separately, so we use
+\begin{equation}
+    \sigma_{emu} = \sqrt{ \sigma_{perf}^2 - \sigma_{test}^2 }
+\end{equation}
+
+\section{Covariance and likelihood}
+
+The covariance between the bins of the statistic is obtained with the Minerva mock catalogs. We compute the statistic on $M=100$ Minerva mocks, which we index by $m$. The covariance matrix $C$ is, in both vector notation and element notation for clarity,
+\begin{eqnarray}
+C &=& \frac{1}{N-1} \sum_m^M (y_{m} - \bar{y})(y_{m} - \bar{y})^T  \\
+C_{pp'} &=& \frac{1}{N-1} \sum_m^M (y_{m,p} - \bar{y}_{p})(y_{m,p'} - \bar{y}_{p'}) 
+\end{eqnarray}
+
+The correlation matrix $R$ is the normalized covariance matrix, with elements
+\begin{equation}
+R_{pp'} = \frac{C_{pp'}}{\sqrt{ C_{pp} C_{p'p'}}} 
+\end{equation}
+
+We combine these errors to obtain a final covariance matrix $\mathcal{C}$ for our likelihood, where $y_{meas}$ is the measured statistic on our data:
+\begin{eqnarray}
+\sigma_{comb,p} &=& \sqrt{ (y_{meas, p} \sigma_{test,p})^2 + \sigma_{emu,p}^2} \\
+\sigma_{comb,p'} &=& \sqrt{ (y_{meas, p'} \sigma_{test,p})^2 + \sigma_{emu,p'}^2} \\
+\mathcal{C}_{pp'} &=& R_{pp'} \sigma_{comb,p} \sigma_{comb,p'}
+\end{eqnarray}
+
+The log-likelihood $\mathcal{L}$ is then defined as 
+\begin{equation}
+    \mathcal{L} = -\frac{1}{2} (y_{pred} - y_{meas}) \mathcal{C}^{-1} (y_{pred} - y_{meas})^T
+\end{equation}
+
+\end{document}
