@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -N train_gp_wp_nonolap_100hod_log_kM32ExpConst2_100hod
+#PBS -N train_gp_wp_nonolap_100hod_kM32ExpConst2_100hod
 #PBS -l walltime=40:00:00
 #PBS -l nodes=1:ppn=9
 #PBS -m ae

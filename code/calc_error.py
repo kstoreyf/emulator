@@ -5,7 +5,7 @@ import numpy as np
 
 def main():
 
-    statistic = 'upf'
+    statistic = 'wp'
 
     fixed_hod = False
     testtag = ''
@@ -36,6 +36,7 @@ def main():
     shots = []
 
     devmeans = []
+    vals_all = []
     for hod in hods:
         for cosmo in cosmos:
             cosmo_avg = np.zeros(nbins)
@@ -52,6 +53,7 @@ def main():
                     rad, val = np.loadtxt(fn, delimiter=',', unpack=True)
                     rads.append(rad)
                     vals.append(val)
+                    vals_all.append(val)
                     box_avg += val
                     vpfs_box += val
                     #wps_cosmo.append(wp)
@@ -77,14 +79,22 @@ def main():
    #shots.append(np.var(wps_hod, axis=0))
 
     #err = np.var(np.array(devmeans), axis=0)
-    err = np.std(np.array(devmeans), axis=0)
+    devmeans = np.array(devmeans)
+    err = np.std(devmeans, axis=0)
+    p16 = np.percentile(devmeans, 16, axis=0)
+    p84 = np.percentile(devmeans, 84, axis=0)
     print(len(devmeans))
     print("err:", err)
+    
+    std_obs = np.std(vals_all, axis=0)
 
     #err *= 100
     #save to both the directory and the mean, same error for both
     np.savetxt(res_dir+"{}_error{}.dat".format(statistic, errtag), err)
-    
+    np.savetxt(res_dir+"{}_p16{}.dat".format(statistic, errtag), p16)
+    np.savetxt(res_dir+"{}_p84{}.dat".format(statistic, errtag), p84)
+    np.savetxt(res_dir+"{}_std{}.dat".format(statistic, errtag), std_obs)
+
     #wps_box_avg /= len(hods)
     #        wps_grid[cosmo][box] += wps_box_avg
 

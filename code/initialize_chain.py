@@ -8,7 +8,7 @@ import warnings
 
 def main(config_fname, plaintext=False):
     """
-    Control all other processes. Primarliy just makes the hdf5 file in the designated
+    Control all other processes. Primarily just makes the hdf5 file in the designated
     location, and copies over relevant info to the attrs
     :param config_fname:
         Filename of a YAML config file.
@@ -53,13 +53,13 @@ def emu_config(f, cfg):
         Emu portion of the cfg
     """
     #required_emu_keys = ['emu_type', 'training_file', 'emu_cov_fname']
-    required_emu_keys = ['statistic', 'traintag', 'testtag', 'errtag', 'tag']
+    required_emu_keys = ['statistic', 'traintag', 'testtag', 'errtag', 'tag', 'kernel_name']
     for key in required_emu_keys:
         assert key in cfg, "%s not in config but is required."%key
         f.attrs[key] = cfg[key]
 
     #optional_keys = ['fixed_params', 'emu_hps', 'seed']
-    optional_keys = ['log', 'mean']
+    optional_keys = ['log', 'mean', 'nhod']
     #default_vals = [{}, {}, {}, None] #gonna None all these if empty
     # want to clafiy nothing specified
 

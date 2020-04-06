@@ -5,10 +5,13 @@ import emulator
 
 statistic = 'upf'
 traintag = '_nonolap'
-errtag = '_10hod_test0'
-tag = ''
 testtag = '_mean_test0'
-log = False
+errtag = '_100hod_test0'
+log = True
+mean = False
+nhod = 100
+kernel_name = 'M32ExpConst'
+tag = f'_log_k{kernel_name}_{nhod}hod'
 
 hods_test = np.loadtxt("/mount/sirocco2/zz681/emulator/CMASSLOWZ/test_galaxy_mocks_wp_RSD/test_galaxy_mocks_new_f_env/HOD_test_np11_n1000_new_f_env.dat")
 nhodparams_test = hods_test.shape[1]
@@ -34,7 +37,7 @@ testing_dir = '../testing_results/'
 hyperparams = "../training_results/{}_training_results{}.dat".format(statistic, gptag)
 
 print("Building emulator")
-emu = emulator.Emulator(statistic, training_dir, gperr=gperr, hyperparams=hyperparams, log=log)
+emu = emulator.Emulator(statistic, training_dir, gperr=gperr, hyperparams=hyperparams, log=log, mean=mean, nhod=nhod, kernel_name=kernel_name)
 emu.build()
 print("Emulator built")
 

@@ -13,8 +13,11 @@ def main():
     #chaintag = 'upf_c4h4_fenv_sigma8_long'
     #chaintag = 'upf_c4h4_fenv_med_nolog'
     #chain_fn = f'../chains/chains_{chaintag}.h5'
-    config_fn = f'../chains/chains_wp_config.cfg'
+    #config_fn = f'../chains/chains_upf_config.cfg'
+    config_fn = f'../chains/configs/chains_wp_config.cfg'
+    #config_fn = f'../chains/configs/minimize_wp_config.cfg'
     chain_fn = initialize_chain.main(config_fn)
+    #run(chain_fn, mode='minimize')
     run(chain_fn)
 
 def run(chain_fn, mode='chain'):
@@ -33,11 +36,11 @@ def run(chain_fn, mode='chain'):
     testtag = f.attrs['testtag']
     errtag = f.attrs['errtag']
     tag = f.attrs['tag']
+    kernel_name = f.attrs['kernel_name']
     # optional
     log = f.attrs['log']
-    #log = True if log is None else log
     mean = f.attrs['mean']
-    #mean = False if mean is None else mean
+    nhod = f.attrs['nhod']
 
     ### chain params
     # required
@@ -47,20 +50,17 @@ def run(chain_fn, mode='chain'):
     param_names = f.attrs['param_names']
     # optional
     multi = f.attrs['multi']
-    #multi = True if multi is None else multi
 
     f.close()
 
     # Set file and directory names
     gptag = traintag + errtag + tag
+    acctag = gptag + testtag
     res_dir = '../../clust/results_{}/'.format(statistic)
     gperr = np.loadtxt(res_dir+"{}_error{}.dat".format(statistic, errtag))
     training_dir = '{}training_{}{}/'.format(res_dir, statistic, traintag)
     testing_dir = '{}testing_{}{}/'.format(res_dir, statistic, testtag)
     hyperparams = "../training_results/{}_training_results{}.dat".format(statistic, gptag)
-    #plot_dir = '../plots/plots_2020-01-27'
-    #plot_fn = f'{plot_dir}/prob_{statistic}{gptag}{savetag}.png'
-    #chain_fn = f'../chains/chains_{statistic}{gptag}{savetag}.png'
 
     # actual calculated stat
     if 'parammean' in testtag:
@@ -70,9 +70,8 @@ def run(chain_fn, mode='chain'):
                             .format(statistic, cosmo, hod))
     print('y:', y.shape, y)
 
-    # number of parameters, ex 8 hod + 7 cosmo
+    # number of parameters, out of 11 hod + 7 cosmo
     num_params = len(param_names)
-    #means = np.random.rand(ndim)
     cosmo_names = ['Omega_m', 'Omega_b', 'sigma_8', 'h', 'n_s', 'N_eff', 'w']
     cosmos_truth = np.loadtxt('../tables/cosmology_camb_test_box_full.dat')
 
@@ -106,25 +105,38 @@ def run(chain_fn, mode='chain'):
     print(truth)
 
     print("Building emulator")
-    emu = emulator.Emulator(statistic, training_dir,  fixed_params=fixed_params, gperr=gperr, hyperparams=hyperparams, log=log, mean=mean)
+    emu = emulator.Emulator(statistic, training_dir,  fixed_params=fixed_params, gperr=gperr, hyperparams=hyperparams, log=log, mean=mean, nhod=nhod, kernel_name=kernel_name)
     emu.build()
     print("Emulator built")
 
-    #cov is correlation matrix (reduced coviance) from minerva mocks
+    #corrmat is the correlation matrix (reduced coviance) from minerva mocks
     #diagonals are from input calculated error
-    cov = np.loadtxt(f"results_minerva/corrmat_minerva_{statistic}.dat")
-    for i in range(len(cov)):
-        cov[i] = emu.gperr[i]
-    #cov = np.diag(emu.gperr) 
-    
+    corrmat = np.loadtxt(f"../../clust/results_minerva/corrmat_minerva_{statistic}.dat")
+
+    emu_error = np.loadtxt(f"../testing_results/{statistic}_emu_error{acctag}.dat")
+    #cov = np.loadtxt(f"../../clust/results_minerva/covmat_minerva_{statistic}.dat")
+
+    # TODO: this is not right but can't figure it out!
+    cov = np.zeros_like(corrmat)
+    for i in range(corrmat.shape[0]):
+        for j in range(corrmat.shape[1]):
+            sigma_i = np.sqrt( (y[i]*emu.gperr[i])**2 + emu_error[i]**2 )
+            sigma_j = np.sqrt( (y[j]*emu.gperr[j])**2 + emu_error[j]**2 )
+            cov[i][j] = corrmat[i][j] * sigma_i*sigma_j
+
+
+    #err_diag = (emu.gperr*y)**2
+    #cov = np.diag(err_diag)
+    print(np.linalg.cond(corrmat)) 
+    print(np.linalg.cond(cov))
+    print(cov)    
     
     start = time.time()
     if mode=='chain':
         res = chain.run_mcmc([emu], param_names, [y], [cov], fixed_params=fixed_params, truth=truth, nwalkers=nwalkers,
             nsteps=nsteps, nburn=nburn, multi=multi, chain_fn=chain_fn)
     elif mode=='minimize':
-        res = chain.run_minimizer([emu], param_names, [y], [cov], fixed_params=fixed_params, truth=truth, nwalkers=nwalkers,
-                nsteps=nsteps, nburn=nburn, multi=multi, chain_fn=chain_fn)
+        res = chain.run_minimizer([emu], param_names, [y], [cov], fixed_params=fixed_params, truth=truth, chain_fn=chain_fn)
     else:
         raise ValueError(f"Mode {mode} not recognized!")
 
