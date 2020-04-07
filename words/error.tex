@@ -1,4 +1,6 @@
 \documentclass[12pt]{article}
+\usepackage{amsmath, amssymb}
+\usepackage{bbold}
 
 \title{Error Computation for Emulation}
 
@@ -9,26 +11,46 @@
 
 This document outlines the error measurements used in our emulation procedure.
 
-The test set contains mock catalogs with $C=7$ different cosmologies $c$. There are $B=5$ boxes (or realizations) $b$ for each cosmology. These are each populated with $H=100$ different halo occupation distribution (HOD) models $h$, the same 100 for each cosmology. (There are also 10 random seeds used per HOD, but for now we only use one. We'll worry about this later.)
+The test set contains mock catalogs with $C=7$ different cosmologies $c$. 
+There are $B=5$ boxes (or realizations) $b$ for each cosmology. 
+These are each populated with $H=100$ different halo occupation distribution (HOD) models $h$, the same 100 for each cosmology. 
+(There are also 10 random seeds used per HOD, but for now we only use one. We'll worry about this later.)
 
-We are concerned with a clustering statistic $y$. We use $y_{meas}$ to mean the statistic computed on a mock or data. We use $y_{pred}$ to mean the emulator prediction for that statistic. We take $y$ to have $P$ dimensions (bins in our case), indexed by $p$ (or $p'$).
+We are concerned with a clustering statistic $y$. 
+We use $y_{obs}$ to mean the statistic computed on a mock or data. 
+We use $y_{pred}$ to mean the emulator prediction for that statistic. 
+We take $y$ to have $P$ dimensions (bins in our case), indexed by $p$ (or $p'$).
 
-The statistic is computed on all $7 \times 5 \times 100 = 3500$ mocks. The statistic is averaged over the 5 boxes, so our final test set contains $N=700$ statistics. We will denote these with index $n$.
+All of the errors in this document, denoted by $\sigma$,  are fractional errors.
+To obtain the physical error, they must be multiplied by the observation. 
+
+The statistic is computed on all $7 \times 5 \times 100 = 3500$ mocks. 
+The statistic is averaged over the 5 boxes, so our final test set contains $N=700$ statistics. 
+We will denote these with index $n$.
 
 \section{Test set error}
 
 The error on the test set is computed as follows. 
 For each cosmology, compute the mean statistic over the boxes.
- Compute the deviation from this mean for each of the boxes, defined as the fractional error between the box statistic and the mean statistic for that cosmology. 
- Do this for every HOD. 
- The test set error is the standard deviation of all of these deviations from the mean.
+Compute the deviation from this mean for each of the boxes, defined as the fractional error between the box statistic and the mean statistic for that cosmology. 
+Do this for every HOD. 
+The test set error is the standard deviation of all of these deviations from the mean.
+
+Breaking this down: For each cosmology and HOD, compute the mean statistic $\bar{y}_{c,h}$ of the $B$ boxes.
+\begin{equation}
+    \bar{y}_{c,h} = \frac{1}{B} \sum_b^B {y_{b,c,h}} \\
+\end{equation}
+For each cosmology and HOD, compute the deviations from the mean for each box $b$.
+\begin{equation}
+    d_{b,c,h} = \frac{ {y_{b,c,h} - \bar{y}_{c,h}} } {\bar{y}_{c,h}}
+\end{equation}
+Compute the standard deviation of all of the deviations form the mean.
 \begin{eqnarray}
-    \bar{y}_{c,h} &=& \frac{1}{B} \sum_b^B {y_{b,c,h}} \\
-    d_{c,h} &=& \frac{ {y_{b,c,h} - \bar{y}_{c,h}} } {\bar{y}_{c,h}} \\
-    \bar{d} &=& \frac{1}{CH} \sum_{c}^C \sum_{h}^H d_{c,h} \\
-    \sigma_{test} &=& \sqrt{ \frac{1}{CH} \sum_{c}^C \sum_{h}^H (d_{c,h} - \bar{d})^2 }
+    \bar{d} &=& \frac{1}{BCH} \sum_b^B \sum_{c}^C \sum_{h}^H d_{b,c,h} \\
+    \sigma_{test} &=& \sqrt{ \frac{1}{BCH} \sum_{b}^B \sum_{c}^C \sum_{h}^H (d_{b,c,h} - \bar{d})^2 }
 \end{eqnarray}
 
+Note that $\sigma_{test}$ is a vector of length $P$, with a scalar error for each bin. 
 This test set error $\sigma_{test}$ is used as an input to the Gassian Process to represent the error on the \emph{training set}. 
 We do this because have a better handle on this error due to the multiple realizations of the test set.
 We note that the procedure outlined here estimates the sample variance contribution to the error.
@@ -42,39 +64,69 @@ The overall emulator performance $\sigma_{perf}$ is defined as
     \sigma_{perf}^2 = \sigma_{emu}^2 + \sigma_{test}^2
 \end{equation}
 
-We obtain this with the RMS error of the test set emulation:
-\begin{equation}
-    \sigma_{perf} = \sum_t^N \sqrt{ \frac{\big( y_{n,pred}^2 - y_{n,meas}^2 \big)} {N}}
-\end{equation}
+We obtain this with the standard deviation of the fractional error of the test set emulation:
+% \begin{equation}
+%     %\sigma_{perf} = \sqrt{ \sum_n^N \frac{\big( y_{n,pred}^2 - y_{n,obs}^2 \big)} {N}}
+%     %\sigma_{perf} = \frac{1}{\sqrt{N}}\sum_n^N \sqrt{ \frac{ y_{n,pred} - y_{n,obs} } {y_{n,obs}}}
+%     \sigma_{perf} =  \sqrt{ \frac{1}{N} \sum_n^N  \big( \frac{ y_{n,pred}^2 - y_{n,obs}^2 } {y_{n,obs}^2} \big)}
+% \end{equation}
+\begin{eqnarray}
+    f_n = \frac{ y_{n,pred} - y_{n,obs} } {y_{n,obs}} \\
+    \sigma_{perf} = \sqrt{ \frac{1}{N} \sum_n^N (f_n - \bar{f})^2 }
+\end{eqnarray}
 
 We care about the emulator error $\sigma_{emu}$ separately, so we use
 \begin{equation}
     \sigma_{emu} = \sqrt{ \sigma_{perf}^2 - \sigma_{test}^2 }
 \end{equation}
 
+Both $\sigma_{emu}$ and $\sigma_{perf}$ are vectors of length $P$, with a scalar error for each $p$-bin. 
+
 \section{Covariance and likelihood}
 
-The covariance between the bins of the statistic is obtained with the Minerva mock catalogs. We compute the statistic on $M=100$ Minerva mocks, which we index by $m$. The covariance matrix $C$ is, in both vector notation and element notation for clarity,
-\begin{eqnarray}
-C &=& \frac{1}{N-1} \sum_m^M (y_{m} - \bar{y})(y_{m} - \bar{y})^T  \\
-C_{pp'} &=& \frac{1}{N-1} \sum_m^M (y_{m,p} - \bar{y}_{p})(y_{m,p'} - \bar{y}_{p'}) 
-\end{eqnarray}
+The covariance between the bins of the statistic is obtained with the Minerva mock catalogs. 
+We compute the statistic on $M=100$ Minerva mocks, which we index by $m$. 
+The covariance matrix $C$ is a $P \times P$ matrix, given by (in vector notation)
+\begin{equation}
+C = \frac{1}{N-1} \sum_m^M (y_{m} - \bar{y})(y_{m} - \bar{y})^T
+\end{equation}
+In element notation, this is
+\begin{equation}
+C_{pp'} = \frac{1}{N-1} \sum_m^M (y_{m,p} - \bar{y}_{p})(y_{m,p'} - \bar{y}_{p'}) 
+\end{equation}
 
-The correlation matrix $R$ is the normalized covariance matrix, with elements
+The correlation matrix, or reduced covariance matrix, $R$ is the normalized covariance matrix, with elements
 \begin{equation}
 R_{pp'} = \frac{C_{pp'}}{\sqrt{ C_{pp} C_{p'p'}}} 
 \end{equation}
 
-We combine these errors to obtain a final covariance matrix $\mathcal{C}$ for our likelihood, where $y_{meas}$ is the measured statistic on our data:
-\begin{eqnarray}
-\sigma_{comb,p} &=& \sqrt{ (y_{meas, p} \sigma_{test,p})^2 + \sigma_{emu,p}^2} \\
-\sigma_{comb,p'} &=& \sqrt{ (y_{meas, p'} \sigma_{test,p})^2 + \sigma_{emu,p'}^2} \\
-\mathcal{C}_{pp'} &=& R_{pp'} \sigma_{comb,p} \sigma_{comb,p'}
-\end{eqnarray}
+We combine all of these errors to obtain a final covariance matrix $\mathcal{C}$ for our likelihood.
+We denote the measurement covariance matrix $\mathcal{C}^{meas}$; this includes the covariance between bins in the Minerva mocks and in the test set.
+We need to multiply our test set fractional error $\sigma_{test}$ by the measured statistic on our data $y_{obs}$ to obtain the test set physical error before combining it with the correlation matrix.
+\begin{equation}
+    \mathcal{C}_{pp'}^{meas} = R_{pp'} (\sigma_{test,p}y_{obs, p}) (\sigma_{test,p'}y_{obs, p'})
+\end{equation}
+
+We assume the emulator error is independent of the measurement error, and there is no covariance of the emulator error between bins.
+Then the emulator covariance matrix $\mathcal{C}^{emu}$ is
+\begin{equation}
+    \mathcal{C}^{emu} = diag(\sigma_{emu}^2)
+\end{equation}
+
+The final covariance matrix is
+\begin{equation}
+    \mathcal{C} = \mathcal{C}^{meas} + \mathcal{C}^{emu}
+\end{equation}
+
+% \begin{eqnarray}
+% \sigma_{comb,p} &=& \sqrt{ \sigma_{test,p}^2 + \sigma_{emu,p}^2} \\
+% \sigma_{comb,p'} &=& \sqrt{ \sigma_{test,p'}^2 + \sigma_{emu,p'}^2} \\
+% \mathcal{C}_{pp'} &=& R_{pp'} (\sigma_{comb,p}y_{obs, p}) (\sigma_{comb,p'}y_{obs, p'})
+% \end{eqnarray}
 
 The log-likelihood $\mathcal{L}$ is then defined as 
 \begin{equation}
-    \mathcal{L} = -\frac{1}{2} (y_{pred} - y_{meas}) \mathcal{C}^{-1} (y_{pred} - y_{meas})^T
+    \mathcal{L} = -\frac{1}{2} (y_{pred} - y_{obs}) \mathcal{C}^{-1} (y_{pred} - y_{obs})^T
 \end{equation}
 
 \end{document}
