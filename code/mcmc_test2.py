@@ -21,7 +21,7 @@ def log_prob(theta):
 
 
 nwalkers = 32
-ndim = 5
+ndim = 1
 np.random.seed(42)
 initial = np.random.randn(nwalkers, ndim)
 nsteps = 100
