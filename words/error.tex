@@ -108,9 +108,9 @@ We need to multiply our test set fractional error $\sigma_{test}$ by the measure
 \end{equation}
 
 We assume the emulator error is independent of the measurement error, and there is no covariance of the emulator error between bins.
-Then the emulator covariance matrix $\mathcal{C}^{emu}$ is
+Then the emulator covariance matrix $\mathcal{C}^{emu}$ is, once again multiplying our fractional error by the observed statistic,
 \begin{equation}
-    \mathcal{C}^{emu} = diag(\sigma_{emu}^2)
+    \mathcal{C}^{emu} = diag(\sigma_{emu}^2 y_{obs, p}^2)
 \end{equation}
 
 The final covariance matrix is
