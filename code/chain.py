@@ -97,14 +97,15 @@ def run_minimizer(emus, param_names, ys, covs, fixed_params={}, truth={}, chain_
     return res
 
 
-def run_mcmc(emus, param_names, ys, covs, fixed_params={}, truth={}, nwalkers=1000,
+
+def run_mcmc(emus, param_names, ys, covs, fixed_params={}, truth={}, nwalkers=24,
         nsteps=100, nburn=20, plot_fn=None, multi=True, chain_fn=None):
 
     global _emus
     _emus = emus
 
     num_params = len(param_names)
-    cov = block_diag(*covs) # TODO: check how to deal w multiple cov mats, this is my guess
+    cov = block_diag(*covs) # TODO: properly compute covariance bw observables
     args = [param_names, fixed_params, ys, cov]
     
     ncpu = mp.cpu_count()
@@ -116,6 +117,70 @@ def run_mcmc(emus, param_names, ys, covs, fixed_params={}, truth={}, nwalkers=10
         if multi:
             print("multi")
             sampler = emcee.EnsembleSampler(nwalkers, num_params, lnprob, args=args, pool=pool)
+            #sampler = emcee.EnsembleSampler(nwalkers, num_params, lnprob, args=args, threads=4)
+        else:
+            print("serial")
+            sampler = emcee.EnsembleSampler(nwalkers, num_params, lnprob, args=args)
+
+        p0 = _random_initial_guess(param_names, nwalkers, num_params)
+        print(param_names)
+        print("Initial:", p0)
+
+        pos, prob, state = sampler.run_mcmc(p0, nburn)
+        sampler.reset()
+
+        itsave = 4
+        chain_chunk = np.empty((nwalkers, itsave, len(param_names))) 
+        lnprob_chunk = np.empty((nwalkers, itsave)) 
+        for it, result in enumerate(sampler.sample(pos, iterations=nsteps, storechain=False)):
+            iti = it + 1
+            rem = iti % itsave
+
+            chain_chunk[:,rem-1,:] = result[0]
+            lnprob_chunk[:,rem-1] = result[1]
+
+            if rem != 0:
+                continue
+
+            print('iti:', iti)
+            f = h5py.File(chain_fn, 'r+')
+
+            chain_dset = f['chain']
+            lnprob_dset = f['lnprob']
+            chain_dset.resize((nwalkers, iti, len(param_names)))
+            lnprob_dset.resize((nwalkers, iti))
+        
+            chain_dset[:,iti-itsave:iti,:] = chain_chunk
+            lnprob_dset[:,iti-itsave:iti] = lnprob_chunk
+
+            f.close()
+
+            chain_chunk = np.empty((nwalkers, itsave, len(param_names))) 
+            lnprob_chunk = np.empty((nwalkers, itsave)) 
+
+
+        
+
+def run_mcmc_complete(emus, param_names, ys, covs, fixed_params={}, truth={}, nwalkers=1000,
+        nsteps=100, nburn=20, plot_fn=None, multi=True, chain_fn=None):
+
+    global _emus
+    _emus = emus
+
+    num_params = len(param_names)
+    cov = block_diag(*covs) # TODO: properly compute covariance bw observables
+    args = [param_names, fixed_params, ys, cov]
+    
+    ncpu = mp.cpu_count()
+    print(f"{ncpu} CPUs")
+
+    print('truth:', truth)
+    with mp.Pool() as pool:
+    #with MultiPool() as pool:
+        if multi:
+            print("multi")
+            sampler = emcee.EnsembleSampler(nwalkers, num_params, lnprob, args=args, pool=pool, threads=4)
+            #sampler = emcee.EnsembleSampler(nwalkers, num_params, lnprob, args=args, threads=4)
         else:
             print("serial")
             sampler = emcee.EnsembleSampler(nwalkers, num_params, lnprob, args=args)
@@ -129,25 +194,9 @@ def run_mcmc(emus, param_names, ys, covs, fixed_params={}, truth={}, nwalkers=10
 
         sampler.run_mcmc(pos, nsteps)
 
-    print("Saving results")
-    flat_samples = sampler.flatchain
-    truths = [truth[pname] for pname in param_names]
-    fig = corner.corner(flat_samples, labels=param_names, truths=truths)
-    if plot_fn:
-        plt.savefig(plot_fn)
+    print("Saving results")    
 
     f = h5py.File(chain_fn, 'r+')
-    f.attrs['true_values'] = truths
-
-    #for now will overwrite
-    if 'chain' in f.keys():
-        del f['chain']
-    if 'lnprob' in f.keys():
-        del f['lnprob']
-
-    print("Saving chain to", chain_fn)
-    f.create_dataset('chain', (0, 0, len(param_names)), chunks = True, compression = 'gzip', maxshape = (None, None, len(param_names)))
-    f.create_dataset('lnprob', (0, 0,) , chunks = True, compression = 'gzip', maxshape = (None, None, ))
 
     chain_dset = f['chain']
     lnprob_dset = f['lnprob']
@@ -161,12 +210,12 @@ def run_mcmc(emus, param_names, ys, covs, fixed_params={}, truth={}, nwalkers=10
     print("Mean acceptance fraction: {0:.3f}"
           .format(np.mean(sampler.acceptance_fraction)))
 
-    tol = 1
-    print("Mean autocorrelation time: {0:.3f} steps"
-     .format(np.mean(sampler.get_autocorr_time(c=tol))))
+    # tol = 1
+    # print("Mean autocorrelation time: {0:.3f} steps"
+    #  .format(np.mean(sampler.get_autocorr_time(c=tol))))
 
-    f.attrs['mean_acceptance_fraction'] = np.mean(sampler.acceptance_fraction)
-    f.attrs['mean_autocorr_time'] = np.mean(sampler.get_autocorr_time(c=tol))
+    # f.attrs['mean_acceptance_fraction'] = np.mean(sampler.acceptance_fraction)
+    # f.attrs['mean_autocorr_time'] = np.mean(sampler.get_autocorr_time(c=tol))
 
     f.close()
 
