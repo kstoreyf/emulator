@@ -1,3 +1,5 @@
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
@@ -38,7 +40,10 @@ def lnlike(theta, param_names, fixed_params, ys, cov):
     param_dict.update(fixed_params)
     emu_preds = []
     for emu in _emus:
+        
         pred = emu.predict(param_dict)
+        #time.sleep(1)
+        #pred = np.random.random(len(ys))*np.array(ys)
         emu_preds.append(pred)
     emu_pred = np.hstack(emu_preds)
     diff = np.array(emu_pred) - np.array(ys)
@@ -126,10 +131,13 @@ def run_mcmc(emus, param_names, ys, covs, fixed_params={}, truth={}, nwalkers=24
         print(param_names)
         print("Initial:", p0)
 
-        pos, prob, state = sampler.run_mcmc(p0, nburn)
-        sampler.reset()
+        if nburn==0:
+            pos = p0
+        else:
+            pos, prob, state = sampler.run_mcmc(p0, nburn)
+            sampler.reset()
 
-        itsave = 4
+        itsave = 100
         chain_chunk = np.empty((nwalkers, itsave, len(param_names))) 
         lnprob_chunk = np.empty((nwalkers, itsave)) 
         for it, result in enumerate(sampler.sample(pos, iterations=nsteps, storechain=False)):
@@ -157,6 +165,7 @@ def run_mcmc(emus, param_names, ys, covs, fixed_params={}, truth={}, nwalkers=24
 
             chain_chunk = np.empty((nwalkers, itsave, len(param_names))) 
             lnprob_chunk = np.empty((nwalkers, itsave)) 
+
 
 
         
