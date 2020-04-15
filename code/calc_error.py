@@ -7,7 +7,6 @@ def main():
 
     statistic = 'wp'
 
-    fixed_hod = False
     testtag = ''
     errtag = '_100hod_test0'
     nhods = 100
@@ -15,89 +14,79 @@ def main():
     res_dir = '../../clust/results_{}/'.format(statistic)
     testing_dir = '../../clust/results_{}/testing_{}{}/'.format(statistic, statistic, testtag)
 
-    if fixed_hod:
-        hods = [1]
-        cosmos = list(range(7))
-    else:
-        hods = list(range(nhods))
-        cosmos = list(range(7))
-
-    ncosmos = len(cosmos)
-    nboxes = 5
-    boxes = list(range(nboxes))
-    tests = list(range(1))
-    ntests = len(tests)
-    rads = []
-    vals = []
-
     nbins = 9
+    ncosmos = 7
+    nboxes = 5
+    ntests = 1 #eventually this should be 10
 
-    wps_grid = np.zeros((ncosmos, nboxes, nbins))
-    shots = []
+    hods = list(range(nhods))
+    cosmos = list(range(ncosmos))
+    boxes = list(range(nboxes))
+    tests = list(range(ntests)) 
+
+    vals = []
 
     devmeans = []
     vals_all = []
     for hod in hods:
         for cosmo in cosmos:
-            cosmo_avg = np.zeros(nbins)
-            print(cosmo)
-            box_avgs = []
+
+            ys_box = [] #this will contain 5 statistics
             for box in boxes:
-                box_avg = np.zeros(nbins)
-                vpfs_box = np.zeros(nbins)
+                
+                # Compute the average over tests for a single box & model
+                ys_test = []
                 for test in tests:
                     fn = testing_dir+'{}_cosmo_{}_Box_{}_HOD_{}_test_{}.dat'\
                         .format(statistic, cosmo, box, hod, test)
-                    #fn = "../results_wp_mean/wp_{}_cosmo_{}_HOD_{}_mean.dat" \
-                    #    .format(tag, cosmo, hod)
-                    rad, val = np.loadtxt(fn, delimiter=',', unpack=True)
-                    rads.append(rad)
-                    vals.append(val)
-                    vals_all.append(val)
-                    box_avg += val
-                    vpfs_box += val
-                    #wps_cosmo.append(wp)
-                    print("vals:", val)
+                    rad, y = np.loadtxt(fn, delimiter=',', unpack=True)
+                    vals.append(y)
+                    ys_test.append(y)
+                y_box = np.mean(ys_test, axis=0) #mean is our estimate for the statistic of the box with the given model
 
-                #turn sum into average
-                box_avg /= ntests
-                print("boxavg:", box_avg)
-                box_avgs.append(box_avg)
-                cosmo_avg += box_avg
+                ys_box.append(y_box)
 
-            cosmo_avg /= nboxes
-            print("cosmoavg", cosmo_avg)
+            #The mean of the 5 boxes, for a given model (cosmo & HOD)
+            y_mean = np.mean(ys_box, axis=0) 
 
-            for boxmean in box_avgs:
-                devmean = np.nan_to_num((boxmean - cosmo_avg)/cosmo_avg)
-                #devmean = np.nan_to_num(boxmean - cosmo_avg)
-
-                #print devmean
+            for y in ys_box:
+                devmean = (y-y_mean)/y_mean
                 devmeans.append(devmean)
-
-
-   #shots.append(np.var(wps_hod, axis=0))
-
-    #err = np.var(np.array(devmeans), axis=0)
+            
+    #compute covariance assuming the mean is zero, as that is the expectation value (should be unbiased)
     devmeans = np.array(devmeans)
+    cov = covariance(devmeans, zeromean=True)
+
+    np.savetxt(res_dir+"{}_cov{}.dat".format(statistic, errtag), cov)
+
     err = np.std(devmeans, axis=0)
-    p16 = np.percentile(devmeans, 16, axis=0)
-    p84 = np.percentile(devmeans, 84, axis=0)
-    print(len(devmeans))
+    np.savetxt(res_dir+"{}_error{}.dat".format(statistic, errtag), err)
     print("err:", err)
     
-    std_obs = np.std(vals_all, axis=0)
-
-    #err *= 100
+    #p16 = np.percentile(devmeans, 16, axis=0)
+    #p84 = np.percentile(devmeans, 84, axis=0)
+    #std_obs = np.std(vals_all, axis=0)
     #save to both the directory and the mean, same error for both
-    np.savetxt(res_dir+"{}_error{}.dat".format(statistic, errtag), err)
-    np.savetxt(res_dir+"{}_p16{}.dat".format(statistic, errtag), p16)
-    np.savetxt(res_dir+"{}_p84{}.dat".format(statistic, errtag), p84)
-    np.savetxt(res_dir+"{}_std{}.dat".format(statistic, errtag), std_obs)
-
+    # 
+    # np.savetxt(res_dir+"{}_p16{}.dat".format(statistic, errtag), p16)
+    # np.savetxt(res_dir+"{}_p84{}.dat".format(statistic, errtag), p84)
+    # np.savetxt(res_dir+"{}_std{}.dat".format(statistic, errtag), std_obs)
     #wps_box_avg /= len(hods)
     #        wps_grid[cosmo][box] += wps_box_avg
 
+
+def covariance(arrs, zeromean=False):
+    N = arrs.shape[0]
+
+    if zeromean:
+        w = arrs
+    else:
+        w = arrs - arrs.mean(0)[:, np.newaxis]
+
+    outers = np.array([np.outer(w[n], w[n]) for n in range(N)])
+    covsum = np.sum(outers, axis=0)
+    cov = 1.0/float(N-1.0) * covsum
+    return cov
 
 if __name__=="__main__":
     main()
