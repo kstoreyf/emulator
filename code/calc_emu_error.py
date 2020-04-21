@@ -6,7 +6,8 @@ def main():
     statistic='wp'
     traintag = '_nonolap'
     testtag = '_mean_test0'
-    errtag = '_100hod_test0'
+    #errtag = '_100hod_test0' # for emu
+    errtag = '_hod3_test0'
     tag = '_log_kM32ExpConst2_100hod'
     gptag = traintag + errtag + tag
     acctag = gptag + testtag
@@ -17,20 +18,27 @@ def main():
 
     print("Computing emu error for", statistic, testtag, acctag)
     ptests, ppredicts = load_data(statistic, testtag, acctag, CC_test, HH_test)
-    emu_performance = compute_rmse(ptests, ppredicts)
+    #emu_performance = compute_rmse(ptests, ppredicts)
+    fracerrs = (ptests-ppredicts)/ptests #consider denom here
+    #emu_performance = np.std(fracerrs)
+    cov_perf = covariance(fracerrs, zeromean=True)
+    cov_perf *= 5 #bc using mean of 5 testboxes
 
     res_dir = '../../clust/results_{}/'.format(statistic)
-    testset_error = np.loadtxt(res_dir+"{}_error{}.dat".format(statistic, errtag)) # been calling GP_error
+    errtag = '_hod3_test0' # for cov test
+    cov_test = np.loadtxt(res_dir+"{}_cov{}.dat".format(statistic, errtag))
 
-    #emu_performance^2 = emu_err^2 + testset_err^2
-    emu_err = np.sqrt(emu_performance**2 - testset_error**2)
-    print(emu_err)
-    save_fn = f"../testing_results/{statistic}_emu_error{acctag}.dat"
+    #cov_performance = cov_emu + cov_test
+    cov_emu = cov_perf - cov_test
+    #emu_err = np.sqrt(emu_performance**2 - testset_error**2)
+    print(cov_emu)
+    save_fn = f"../testing_results/{statistic}_emu_cov{acctag}.dat"
     print('Saving to', save_fn)
-    np.savetxt(save_fn, emu_err)
+    np.savetxt(save_fn, cov_emu)
 
+    save_fn_perf = f"../testing_results/{statistic}_emuperf_cov{acctag}.dat"
+    np.savetxt(save_fn_perf, cov_perf)
 
-    
 
 def load_data(statistic, testtag, acctag, CC_test, HH_test):
 
@@ -56,7 +64,23 @@ def load_data(statistic, testtag, acctag, CC_test, HH_test):
             ptests.append(ptest)
             ppredicts.append(ppredict)
     
-    return ptests, ppredicts
+    return np.array(ptests), np.array(ppredicts)
+
+
+
+def covariance(arrs, zeromean=False):
+    N = arrs.shape[0]
+
+    if zeromean:
+        w = arrs
+    else:
+        w = arrs - arrs.mean(0)
+
+    outers = np.array([np.outer(w[n], w[n]) for n in range(N)])
+    covsum = np.sum(outers, axis=0)
+    cov = 1.0/float(N-1.0) * covsum
+    return cov
+
 
 
 def compute_rmse(ys, y_preds):
