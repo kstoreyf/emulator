@@ -15,10 +15,11 @@ statistic = 'wp'
 traintag = '_nonolap'
 nhod = 100
 kernel_name = 'M32ExpConst2'
-tag = '_k{}_{}hod'.format(kernel_name, nhod)
-log = False
+tag = '_log_k{}_{}hod'.format(kernel_name, nhod)
+log = True
 mean = False
-errtag = '_100hod_test0'
+#errtag = '_100hod_test0'
+errtag = '_hod3_test0'
 gptag = traintag + errtag + tag
 
 nthreads = 9

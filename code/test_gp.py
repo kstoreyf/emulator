@@ -8,8 +8,8 @@ import emulator
 statistic = 'wp'
 traintag = '_nonolap'
 testtag = '_mean_test0'
-errtag = '_100hod_test0'
-#errtag = '_10hod_test0'
+#errtag = '_100hod_test0'
+errtag = '_hod3_test0'
 testmean = True
 
 nhod_test=100
@@ -19,9 +19,9 @@ nhod_test=100
 #tag = '_log'
 nhod = 100
 kernel_name = 'M32ExpConst2'
-tag = '_k{}_{}hod'.format(kernel_name, nhod)
+tag = '_log_k{}_{}hod'.format(kernel_name, nhod)
 savetag = ''
-log = False
+log = True
 mean = False
 gptag = traintag + errtag + tag
 acctag = gptag + testtag + savetag
