@@ -20,8 +20,8 @@
 Our goal is to compute the likelihood function used to estimate model parameters with our emulator.
 The log-likelihood $\mathcal{L}$ can be defined as 
 \begin{equation}
-    %\mathcal{L} = -\frac{1}{2} (\y{pred} - \y{obs}) \cov^{-1} (\y{pred} - \y{obs})^T
-    \mathcal{L} = -\frac{1}{2} \bigg( \frac{\y{pred} - \y{obs}}{\y{obs}} \bigg) \covtot\inv \bigg( \frac{\y{pred} - \y{obs}}{\y{obs}} \bigg)
+    %\mathcal{L} = -\frac{1}{2} (\y{pred} - \y{obs})\T \cov^{-1} (\y{pred} - \y{obs})
+    \mathcal{L} = -\frac{1}{2} \bigg( \frac{\y{pred} - \y{obs}}{\y{obs}} \bigg)\T \covtot\inv \bigg( \frac{\y{pred} - \y{obs}}{\y{obs}} \bigg)
 \end{equation}
 where $\covtot$ is the covariance matrix, and $y$ is the clustering statistic we are emulating.
 Here $\y{obs}$ is the statistic computed on a mock or data, and $\y{pred}$ is the emulator prediction for that statistic. 
@@ -91,8 +91,8 @@ The performance covariance is then:
 %     \sigma_{perf} =  \sqrt{ \frac{1}{N} \sum_n^N  \big( \frac{ y_{n,pred}^2 - y_{n,obs}^2 } {y_{n,obs}^2} \big)}
 % \end{equation}
 \begin{eqnarray}
-    f_n = \frac{ \y{\textit{n},pred} - \y{\textit{n},obs} }{ \y{\textit{n},obs} } \\
-    \cov{perf} =  B \bigg( \frac{1}{N-1} \bigg) \sum_n^N f_n \cdot f_n\T.
+    f_n &=& \frac{ \y{\textit{n},pred} - \y{\textit{n},obs} }{ \y{\textit{n},obs} } \\
+    \cov{perf} &=& B \bigg( \frac{1}{N-1} \bigg) \sum_n^N f_n \cdot f_n\T.
 \end{eqnarray}
 Once again we know the expectation value of these fractional errors should be zero, so we assume $\bar{f}_{n}=0$ when computing the covariance.
 
@@ -109,10 +109,12 @@ The covariance between the bins of the statistic is obtained with the Minerva mo
 These are larger than the test simulations, with side length $L_\text{minerva}=1.5$ Gpc.
 We compute the statistic on $M=100$ Minerva mocks, which we index by $m$.
 The Minerva covariance matrix $\cov{minerva}$ is a $P \times P$ matrix, given by
-\begin{equation}
-\cov{minerva} = \bigg( \frac{L_\text{minerva}}{L_\text{test}} \bigg)^3 \bigg( \frac{1}{M-1} \bigg) \sum_m^M (y_{m} - \bar{y})(y_{m} - \bar{y})^T
-\end{equation}
-where we have rescaled the covariance by the ratio of volumes of the test simulation and the Minerva simulation (Minerva errors will be smaller because it has more volume, so we need to inflate these).
+\begin{eqnarray}
+d_m &=& \frac{y_{m} - \bar{y}}{\bar{y}} \\
+\cov{minerva} &=& \bigg( \frac{L_\text{minerva}}{L_\text{test}} \bigg)^3 \bigg( \frac{1}{M-1} \bigg) \sum_m^M d_m \cdot d_m\T
+\end{eqnarray}
+where $\bar{y}$ is the mean of all $M$ statistics.
+Note that we have rescaled the covariance by the ratio of volumes of the test simulation and the Minerva simulation (Minerva errors will be smaller because it has more volume, so we need to inflate these).
 
 % The correlation matrix, or reduced covariance matrix, $R$ is the normalized covariance matrix, with elements
 % \begin{equation}
