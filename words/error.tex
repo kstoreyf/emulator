@@ -1,12 +1,16 @@
 \documentclass[12pt]{article}
 \usepackage{amsmath, amssymb}
 \usepackage{bbold}
+\usepackage{xcolor}
+\usepackage{enumitem}
 
 \newcommand{\T}{^{\mathrm{T}}}
 \newcommand{\inv}{^{-1}}
-\newcommand{\cov}[1]{C^\text{#1}}
-\newcommand{\covtot}{C}
+\newcommand{\like}{\mathcal{L}}
+\newcommand{\cov}[1]{C_\text{#1}}
+\newcommand{\covtot}{C_\like}
 \newcommand{\y}[1]{y_{\text{#1}}}
+\newcommand{\KSF}[1]{\textcolor{teal}{KSF says: #1}}
 
 \title{Error Computation for Emulation}
 
@@ -14,41 +18,62 @@
 \maketitle
 
 
-% TODO: make _obs and _pred a command with mathrm
 \section{Introduction}
 
 Our goal is to compute the likelihood function used to estimate model parameters with our emulator.
-The log-likelihood $\mathcal{L}$ can be defined as 
+The log-likelihood $\like$ can be defined as 
 \begin{equation}
-    %\mathcal{L} = -\frac{1}{2} (\y{pred} - \y{obs})\T \cov^{-1} (\y{pred} - \y{obs})
-    \mathcal{L} = -\frac{1}{2} \bigg( \frac{\y{pred} - \y{obs}}{\y{obs}} \bigg)\T \covtot\inv \bigg( \frac{\y{pred} - \y{obs}}{\y{obs}} \bigg)
+    \like = -\frac{1}{2} \bigg( \frac{\y{pred} - \y{test}}{\y{test}} \bigg)\T \covtot\inv \bigg( \frac{\y{pred} - \y{test}}{\y{test}} \bigg)
 \end{equation}
 where $\covtot$ is the covariance matrix, and $y$ is the clustering statistic we are emulating.
-Here $\y{obs}$ is the statistic computed on a mock or data, and $\y{pred}$ is the emulator prediction for that statistic. 
-We take $y$ to have $P$ dimensions (radial bins in our case), and $C$ to be a $P \times P$ matrix.
+\KSF{should ``test'' be ``data''?}
+Here $\y{test}$ is the statistic computed on a mock or data, and $\y{pred}$ is the emulator prediction for that statistic. 
+We take $y$ to have $P$ dimensions (radial bins in our case), and $\covtot$ to be a $P \times P$ matrix.
 
-This document outlines how we compute this covariance matrix $\covtot$, as well as other error measurements used in our emulation procedure.
+This document outlines how we compute this covariance matrix, which we define as
+\label{eq:covtot}
+\begin{equation}
+    \covtot = \cov{emu} + \cov{data}
+\end{equation}
+where $\cov{emu}$ is the covariance of our emulator (defined below) and $\cov{data}$ is the covariance of the data set on which we are performing parameter recovery.
+These and all other covariance matrices in this documenet are of size $P \times P$.
 
-\section{Notation}
- 
-The test set contains mock catalogs with $C=7$ different cosmologies $c$. 
-There are $B=5$ boxes (or realizations) $b$ for each cosmology. 
-These are each populated with $H=100$ different halo occupation distribution (HOD) models $h$, the same 100 for each cosmology. 
-(There are also 10 random seeds used per HOD, but for now we only use one. We'll worry about this later.)
-The test boxes all have $L_\text{test}=1.05$ Gpc.
-Covariances scale as the volume (covariance decreases with increasing volume; Klypin \& Prada 2018) so we will scale all covariances to that of a single test
-
-All of the covariance matrices in this document are fractional errors.
-This is consistent with our definition of the likelihood function, which uses the fractional error between the observation and the emulator prediction.
+To be consistent with our definition of the likelihood function, which uses the fractional error between the observation and the emulator prediction, all of the covariance matrices in this document are fractional errors.
 We note that generally, it is not obvious whether to divide the physical error by the observation or the prediction to obtain the fractional error.
-In this case, the prediction is trained on many observations, so the observation $\y{obs}$ is the more well-measured quantity and we choose it for the denominator.
-%To obtain the physical error, they must be multiplied by the observation. 
+In this case, the prediction is trained on many observations, so the observation $\y{test}$ is the more well-measured quantity and we choose it for the denominator.
 
+
+\section{Emulator covariance}
+
+The overall emulator performance covariance $\cov{perf}$ is defined as
+\begin{equation}
+    \cov{perf} = \cov{emu} + \cov{test}
+\end{equation}
+where $\cov{test}$ is the covariance of the data you are testing the emulator on, or an estimate of this error (more on this later).
+
+We obtain $\cov{perf}$ by computing the covariance of the fractional error between the emulator prediction and the observation.
+The performance covariance on a set with $N$ observations indexed by $n$ is then:
+\begin{eqnarray}
+    f_n &=& \frac{ \y{\textit{n},pred} - \y{\textit{n},test} }{ \y{\textit{n},test} } \\
+    \cov{perf} &=& \frac{1}{N-1} \sum_n^N f_n \cdot f_n\T.
+\end{eqnarray}
+Once again we know the expectation value of these fractional errors should be zero, so we assume $\bar{f}_{n}=0$ when computing the covariance.
+
+We care about the emulator covariance $\cov{emu}$ separately from the test covariance, so we compute it using
+\label{eq:emu}
+\begin{equation}
+    \cov{emu} = \cov{perf} - \cov{test}.
+\end{equation}
+
+
+\section{Aemulus simulation error}
+
+The Aemulus test set contains mock catalogs with $C=7$ different cosmologies $c$. 
+There are $B=5$ boxes (or realizations) $b$ for each cosmology. 
+These are each populated with $H=100$ different halo occupation distribution (HOD) models $h$, the same ones for each cosmology. 
+(There are also 10 random seeds used per HOD, but for now we only use one. We'll worry about this later.)
 The statistic is computed on all $7 \times 5 \times 100 = 3500$ mocks. 
-The statistic is averaged over the 5 boxes, so our final test set contains $N=700$ statistics. 
-We will denote these with index $n$.
-
-\section{Test set error}
+The test boxes all have $L_\text{aemulus}=1.05$ Gpc.
 
 We are interested in estimating the sample variance of a single simulation, as an estimate of the test set error.
 We compute this as follows. 
@@ -65,82 +90,60 @@ This is defined as the fractional error between the box statistic and the mean s
 \end{equation}
 We finally compute the covariance of these $B \times C$ deviations from the mean,
 \begin{equation}
-    \cov{test} = \frac{1}{BC-1} \sum_{b}^B \sum_{c}^C d_{b,c} \cdot d_{b,c}\T.
+    \cov{1box} = \frac{1}{BC-1} \sum_{b}^B \sum_{c}^C d_{b,c} \cdot d_{b,c}\T.
 \end{equation}
-Note that the expectation value of deviations from the mean should be zero, so we assume $\bar{d}_{b,c}=0$ when computing the covariance. $C^{test}$ is a matrix of size $P \times P$.
+Note that the expectation value of deviations from the mean should be zero, so we assume $\bar{d}_{b,c}=0$ when computing the covariance.
 
 The square root of the diagonal of this matrix (a.k.a. the standard deviation) is used as an input to the Gassian Process to represent the error on the \emph{training set}. % is this correct?
 We do this because have a better handle on this sample variance error using the test set as it has multiple realizations per cosmology, compared to using the training set which only has a single realization per cosmology.
 We note that the random seeds, which we have not yet included, estimate the shot noise contribution; we will update with this later.
 
 
-\section{Emulator performance and error}
-
-The overall emulator performance covariance $\cov{perf}$ is defined as
-\begin{equation}
-    \cov{perf} = \cov{emu} + \cov{test}
-\end{equation}
-
-We obtain this by computing the covariance of the fractional error between the emulator prediction and the observation.
-Here, the observation $\y{\textit{n},obs}$ is the mean of the $B$ boxes for each cosmology and HOD model, so we effectively have $B$ times the volume.
-Thus when we compute the covariance, we need to scale it down by a factor of $B$ to match the test set, a.k.a. our error will increase.
-The performance covariance is then:
-% \begin{equation}
-%     %\sigma_{perf} = \sqrt{ \sum_n^N \frac{\big( y_{n,pred}^2 - y_{n,obs}^2 \big)} {N}}
-%     %\sigma_{perf} = \frac{1}{\sqrt{N}}\sum_n^N \sqrt{ \frac{ y_{n,pred} - y_{n,obs} } {y_{n,obs}}}
-%     \sigma_{perf} =  \sqrt{ \frac{1}{N} \sum_n^N  \big( \frac{ y_{n,pred}^2 - y_{n,obs}^2 } {y_{n,obs}^2} \big)}
-% \end{equation}
-\begin{eqnarray}
-    f_n &=& \frac{ \y{\textit{n},pred} - \y{\textit{n},obs} }{ \y{\textit{n},obs} } \\
-    \cov{perf} &=& B \bigg( \frac{1}{N-1} \bigg) \sum_n^N f_n \cdot f_n\T.
-\end{eqnarray}
-Once again we know the expectation value of these fractional errors should be zero, so we assume $\bar{f}_{n}=0$ when computing the covariance.
-
-We care about the emulator covariance $\cov{emu}$ separately from the test covariance, so we compute it using
-\begin{equation}
-    \cov{emu} = \cov{perf} - \cov{test}.
-\end{equation}
-
-Both $\cov{emu}$ and $\cov{perf}$ are matrices of size $P \times P$.
-
 \section{Measurement covariance with Minerva}
 
-The covariance between the bins of the statistic is obtained with the Minerva mock catalogs. 
-These are larger than the test simulations, with side length $L_\text{minerva}=1.5$ Gpc.
+We can estimate $\cov{test}$, the covariance between the bins of the statistic, with other sets of simulations that may have advantages to Aemulus.
+Here we use Minerva, which have a larger volume than Aemulus simulations, with side length $L_\text{minerva}=1.5$ Gpc.
 We compute the statistic on $M=100$ Minerva mocks, which we index by $m$.
-The Minerva covariance matrix $\cov{minerva}$ is a $P \times P$ matrix, given by
+The Minerva covariance matrix $\cov{minerva}$ is given by
 \begin{eqnarray}
 d_m &=& \frac{y_{m} - \bar{y}}{\bar{y}} \\
-\cov{minerva} &=& \bigg( \frac{L_\text{minerva}}{L_\text{test}} \bigg)^3 \bigg( \frac{1}{M-1} \bigg) \sum_m^M d_m \cdot d_m\T
+\cov{minerva} &=& \frac{1}{M-1} \sum_m^M d_m \cdot d_m\T
 \end{eqnarray}
 where $\bar{y}$ is the mean of all $M$ statistics.
 Note that we have rescaled the covariance by the ratio of volumes of the test simulation and the Minerva simulation (Minerva errors will be smaller because it has more volume, so we need to inflate these).
 
-% The correlation matrix, or reduced covariance matrix, $R$ is the normalized covariance matrix, with elements
-% \begin{equation}
-% R_{pp'} = \frac{C_{pp'}}{\sqrt{ C_{pp} C_{p'p'}}} 
-% \end{equation}
+
+\section{Combining and scaling covariances}
 
 We combine these errors to obtain a final covariance matrix $\covtot$ for our likelihood.
-% We denote the measurement covariance matrix $\cov{meas}$; this includes the covariance between bins in the Minerva mocks and in the test set.
-%We need to multiply our test set fractional error $\sigma_{test}$ by the measured statistic on our data $\y{obs}$ to obtain the test set physical error before combining it with the correlation matrix.
-% \begin{equation}
-%     \mathcal{C}_{pp'}^{meas} = R_{pp'} (\sigma_{test,p}y_{obs, p}) (\sigma_{test,p'}y_{obs, p'})
-% \end{equation}
-% We assume the emulator error is independent of the measurement error, and there is no covariance of the emulator error between bins.
-% Then the emulator covariance matrix $\mathcal{C}^{emu}$ is, once again multiplying our fractional error by the observed statistic,
-% \begin{equation}
-%     \mathcal{C}^{emu} = diag(\sigma_{emu}^2 y_{obs, p}^2)
-% \end{equation}
-The final covariance matrix is
-\begin{equation}
-    \covtot = \cov{minerva} + \cov{emu}.
-\end{equation}
+Covariances scale as the volume (covariance decreases with increasing volume; Klypin \& Prada 2018) so we need to scale covariances to be consistent when combining them.
 
-% \begin{eqnarray}
-% \sigma_{comb,p} &=& \sqrt{ \sigma_{test,p}^2 + \sigma_{emu,p}^2} \\
-% \sigma_{comb,p'} &=& \sqrt{ \sigma_{test,p'}^2 + \sigma_{emu,p'}^2} \\
-% \mathcal{C}_{pp'} &=& R_{pp'} (\sigma_{comb,p}y_{obs, p}) (\sigma_{comb,p'}y_{obs, p'})
-% \end{eqnarray}
+We have multiple options of how to estimate $\cov{perf}$ and $\cov{test}$: 
+\begin{enumerate}[label=(\Alph*)]
+    \item $\cov{perf}$ is estimated using a test set that is composed of statistics computed on individual Aemulus boxes, and $\cov{test} = \cov{1box}$.
+
+    \item $\cov{perf}$ is estimated with a test set is composed of the \emph{mean} of statistics computed on $B$ Aemulus box realizations, and $\cov{test} = \cov{Bbox} = \frac{1}{B}\cov{1box}$. 
+    (This choice of test set essentially increases the volume by a factor of $B$, so the error will be smaller.)
+
+    \item $\cov{perf}$ is estimated with a test set is composed of statistics computed on individual Aemulus boxes, but we estimate $\cov{test}$ with the Minerva simulations, so 
+    \begin{equation}
+        \cov{test} = \bigg( \frac{L_\text{minerva} }{ L_\text{aemulus}} \bigg)^3  \cov{minerva}.
+    \end{equation}
+    Note that $L_\text{minerva} > L_\text{aemulus}$, so the Minerva error will be smaller than that of the test set used to compute $\cov{perf}$, and needs to be inflated to match it.
+    
+    \item $\cov{perf}$ is estimated with a test set is composed of the mean statistics computed on $B$ Aemulus boxes, and we estimate $\cov{test}$ with the Minerva simulations. Then,
+    \begin{equation}
+        \cov{test} =  \frac{1}{B}\bigg( \frac{L_\text{minerva} }{ L_\text{aemulus}} \bigg)^3  \cov{minerva}.
+        \end{equation}
+
+\end{enumerate}
+In our current tests, we choose option (D). 
+
+Once we have chosen the test set used to evaluate $\cov{perf}$ and estimated $\cov{test}$, we combine them to estimate $\cov{emu}$ as in Equation \ref{eq:emu}.
+To compute the final covariance matrix $\covtot$ for performing parameter recovery on a data set, we need the covariance of that dataset $\cov{data}$.
+This could be the real data (e.g. we plan to use BOSS and DESI). Then the final combined likelihood is given by Equation \ref{eq:covtot}.
+
+For our tests, we are performining parameter recovery on the Aemulus test simulations, so we have $\cov{data} = \cov{test}$. 
+In this special case, we simply have $\covtot = \cov{perf}$. 
 
 \end{document}
