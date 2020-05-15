@@ -4,8 +4,8 @@ import os
 import emulator
 
 
-#statistic = 'upf'
-statistic = 'wp'
+statistic = 'upf'
+#statistic = 'wp'
 traintag = '_nonolap'
 testtag = '_mean_test0'
 #errtag = '_100hod_test0'
@@ -18,7 +18,7 @@ nhod_test=100
 #tag = '_logleastsq'
 #tag = '_log'
 nhod = 100
-kernel_name = 'M32ExpConst2'
+kernel_name = 'M32ExpConst'
 tag = '_log_k{}_{}hod'.format(kernel_name, nhod)
 savetag = ''
 log = True

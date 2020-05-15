@@ -3,12 +3,13 @@ import numpy as np
 
 def main():
 
-    statistic='wp'
+    #statistic='wp'
+    statistic='upf'
     traintag = '_nonolap'
     testtag = '_mean_test0'
     #errtag = '_100hod_test0' # for emu
     errtag = '_hod3_test0'
-    tag = '_log_kM32ExpConst2_100hod'
+    tag = '_log_kM32ExpConst_100hod'
     gptag = traintag + errtag + tag
     acctag = gptag + testtag
 

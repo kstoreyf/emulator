@@ -10,11 +10,11 @@ import emulator
 sys.path.insert(0, '../../../CMASS/Gaussian_Process/GP/')
 
 
-statistic = 'wp'
-#statistic = 'upf'
+#statistic = 'wp'
+statistic = 'upf'
 traintag = '_nonolap'
 nhod = 100
-kernel_name = 'M32ExpConst2'
+kernel_name = 'M32ExpConst'
 tag = '_log_k{}_{}hod'.format(kernel_name, nhod)
 log = True
 mean = False

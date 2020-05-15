@@ -5,7 +5,7 @@ import numpy as np
 
 def main():
 
-    statistic = 'wp'
+    statistic = 'upf'
 
     testtag = ''
     errtag = '_hod3_test0'

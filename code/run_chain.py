@@ -14,9 +14,9 @@ import initialize_chain
 def main():
     #chaintag = 'upf_c4h4_fenv_sigma8_long'
     #chaintag = 'upf_c4h4_fenv_med_nolog'
-    #config_fn = f'../chains/chains_upf_config.cfg'
+    config_fn = f'../chains/configs/chains_upf_config.cfg'
     #config_fn = f'../chains/configs/chains_wp_config.cfg'
-    config_fn = f'../chains/configs/chains_wp_test.cfg'
+    #config_fn = f'../chains/configs/chains_wp_test.cfg'
     #config_fn = f'../chains/configs/minimize_wp_config.cfg'
     chain_fn = initialize_chain.main(config_fn)
     #run(chain_fn, mode='minimize')
@@ -58,7 +58,7 @@ def run(chain_fn, mode='chain'):
     acctag = gptag + testtag
     res_dir = '../../clust/results_{}/'.format(statistic)
     gperr = np.loadtxt(res_dir+"{}_error{}.dat".format(statistic, errtag))
-    emu_error = np.loadtxt(f"../testing_results/{statistic}_emu_error{acctag}.dat")
+    #emu_error = np.loadtxt(f"../testing_results/{statistic}_emu_error{acctag}.dat")
     training_dir = '{}training_{}{}/'.format(res_dir, statistic, traintag)
     testing_dir = '{}testing_{}{}/'.format(res_dir, statistic, testtag)
     hyperparams = "../training_results/{}_training_results{}.dat".format(statistic, gptag)
@@ -123,25 +123,35 @@ def run(chain_fn, mode='chain'):
     print("Emulator built")
 
     ### Setup covariance matrix ###
+    cov_minerva = np.loadtxt(f'../../clust/results_minerva/{statistic}_cov_minerva.dat')
+    cov_minerva *= (1.5/1.05)**3
+
+    #cov_test = np.loadtxt(res_dir+"{}_cov{}.dat".format(statistic, errtag))
+
+    cov_emu = np.loadtxt(f"../testing_results/{statistic}_emu_cov{acctag}.dat")
+
+    #cov_perf = np.loadtxt(f"../testing_results/{statistic}_emuperf_cov{acctag}.dat")
+
+    cov = cov_emu + cov_minerva
+
     #corrmat is the correlation matrix (reduced coviance) from minerva mocks
     #diagonals are from input calculated error
-    corrmat = np.loadtxt(f"../../clust/results_minerva/corrmat_minerva_{statistic}.dat")
+    # corrmat = np.loadtxt(f"../../clust/results_minerva/corrmat_minerva_{statistic}.dat")
     #cov = np.loadtxt(f"../../clust/results_minerva/covmat_minerva_{statistic}.dat")
-    cov_meas = np.zeros_like(corrmat)
-    for i in range(corrmat.shape[0]):
-        for j in range(corrmat.shape[1]):
-            #sigma_i = np.sqrt( (y[i]*emu.gperr[i])**2 + emu_error[i]**2 )
-            #sigma_j = np.sqrt( (y[j]*emu.gperr[j])**2 + emu_error[j]**2 )
-            sigma_i = y[i]*emu.gperr[i]
-            sigma_j = y[j]*emu.gperr[j]
-            cov_meas[i][j] = corrmat[i][j] * sigma_i*sigma_j
+    # cov_meas = np.zeros_like(corrmat)
+    # for i in range(corrmat.shape[0]):
+    #     for j in range(corrmat.shape[1]):
+    #         #sigma_i = np.sqrt( (y[i]*emu.gperr[i])**2 + emu_error[i]**2 )
+    #         #sigma_j = np.sqrt( (y[j]*emu.gperr[j])**2 + emu_error[j]**2 )
+    #         sigma_i = y[i]*emu.gperr[i]
+    #         sigma_j = y[j]*emu.gperr[j]
+    #         cov_meas[i][j] = corrmat[i][j] * sigma_i*sigma_j
 
     # TODO: fix emu_error, should be fractional, then will need to multiply by y too
-    cov_emu = np.diag(emu_error**2)
-    cov = cov_meas + cov_emu
+    #cov_emu = np.diag(emu_error**2)
+    #cov = cov_meas + cov_emu
     #err_diag = (emu.gperr*y)**2
     #cov = np.diag(err_diag)
-    print(np.linalg.cond(corrmat)) 
     print(np.linalg.cond(cov))
     print(cov)    
     

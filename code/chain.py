@@ -45,8 +45,10 @@ def lnlike(theta, param_names, fixed_params, ys, cov):
         #time.sleep(1)
         #pred = np.random.random(len(ys))*np.array(ys)
         emu_preds.append(pred)
+
     emu_pred = np.hstack(emu_preds)
-    diff = np.array(emu_pred) - np.array(ys)
+    #diff = np.array(emu_pred) - np.array(ys)
+    diff = (np.array(emu_pred) - np.array(ys))/np.array(ys)
     diff = diff.flatten()
 
     #like = np.sum(diff**2/combined_inv_cov)
