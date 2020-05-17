@@ -52,7 +52,8 @@ def emu_config(f, cfg):
     :param cfg:
         Emu portion of the cfg
     """
-    #required_emu_keys = ['emu_type', 'training_file', 'emu_cov_fname']
+
+
     required_emu_keys = ['statistic', 'traintag', 'testtag', 'errtag', 'tag', 'kernel_name']
     for key in required_emu_keys:
         assert key in cfg, "%s not in config but is required."%key

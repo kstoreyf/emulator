@@ -5,6 +5,7 @@ import numpy as np
 import scipy
 import emcee
 import h5py 
+from scipy.linalg import block_diag
 
 import chain
 import emulator
@@ -12,15 +13,13 @@ import initialize_chain
 
 
 def main():
-    #chaintag = 'upf_c4h4_fenv_sigma8_long'
-    #chaintag = 'upf_c4h4_fenv_med_nolog'
-    config_fn = f'../chains/configs/chains_upf_config.cfg'
+    #config_fn = f'../chains/configs/chains_wp_upf_config.cfg'
     #config_fn = f'../chains/configs/chains_wp_config.cfg'
-    #config_fn = f'../chains/configs/chains_wp_test.cfg'
+    config_fn = f'../chains/configs/chains_upf_config.cfg'
     #config_fn = f'../chains/configs/minimize_wp_config.cfg'
     chain_fn = initialize_chain.main(config_fn)
-    #run(chain_fn, mode='minimize')
     run(chain_fn)
+    #run(chain_fn, mode='minimize')
 
 def run(chain_fn, mode='chain'):
 
@@ -33,18 +32,18 @@ def run(chain_fn, mode='chain'):
 
     ### emu params
     # required
-    statistic = f.attrs['statistic']
-    traintag = f.attrs['traintag']
-    testtag = f.attrs['testtag']
-    errtag = f.attrs['errtag']
-    tag = f.attrs['tag']
-    kernel_name = f.attrs['kernel_name']
+    statistics = f.attrs['statistic']
+    traintags = f.attrs['traintag']
+    testtags = f.attrs['testtag']
+    errtags = f.attrs['errtag']
+    tags = f.attrs['tag']
+    kernel_names = f.attrs['kernel_name']
     # optional
-    log = f.attrs['log']
-    mean = f.attrs['mean']
-    nhod = f.attrs['nhod']
+    logs = f.attrs['log']
+    means = f.attrs['mean']
+    nhods = f.attrs['nhod']
 
-    ### chain params
+    ### chain params4
     # required
     nwalkers = f.attrs['nwalkers']
     nburn = f.attrs['nburn']
@@ -54,22 +53,28 @@ def run(chain_fn, mode='chain'):
     multi = f.attrs['multi']
 
     # Set file and directory names
-    gptag = traintag + errtag + tag
-    acctag = gptag + testtag
-    res_dir = '../../clust/results_{}/'.format(statistic)
-    gperr = np.loadtxt(res_dir+"{}_error{}.dat".format(statistic, errtag))
-    #emu_error = np.loadtxt(f"../testing_results/{statistic}_emu_error{acctag}.dat")
-    training_dir = '{}training_{}{}/'.format(res_dir, statistic, traintag)
-    testing_dir = '{}testing_{}{}/'.format(res_dir, statistic, testtag)
-    hyperparams = "../training_results/{}_training_results{}.dat".format(statistic, gptag)
+    nstats = len(statistics)
+    # training_dirs = np.empty(nstats, dtype=str)
+    # testing_dirs = np.empty(nstats, dtype=str)
+    # hyperparams = np.empty(nstats, dtype=str)
+    training_dirs = [None]*nstats
+    testing_dirs = [None]*nstats
+    hyperparams = [None]*nstats
+    acctags = [None]*nstats
+    ys = []
+    for i, statistic in enumerate(statistics):
+        gptag = traintags[i] + errtags[i] + tags[i]
+        acctags[i] = gptag + testtags[i]
+        res_dir = '../../clust/results_{}/'.format(statistic)
+        gperr = np.loadtxt(res_dir+"{}_error{}.dat".format(statistic, errtags[i]))
+        training_dirs[i] = '{}training_{}{}/'.format(res_dir, statistic, traintags[i])
+        testing_dirs[i] = '{}testing_{}{}/'.format(res_dir, statistic, testtags[i])
+        hyperparams[i] = "../training_results/{}_training_results{}.dat".format(statistic, gptag)
 
-    # actual calculated stat
-    if 'parammean' in testtag:
-        rad, y = np.loadtxt(f'../testing_results/{statistic}_parammean.dat', delimiter=',', unpack=True)
-    else:
-        rad, y = np.loadtxt(testing_dir+'{}_cosmo_{}_HOD_{}_mean.dat'
-                            .format(statistic, cosmo, hod))
-    print('y:', y.shape, y)
+        # actual calculated stat
+        _, y = np.loadtxt(testing_dirs[i]+'{}_cosmo_{}_HOD_{}_mean.dat'.format(statistic, cosmo, hod))
+        ys.extend(y)
+        print('y:', y.shape, y)
 
     # number of parameters, out of 11 hod + 7 cosmo
     num_params = len(param_names)
@@ -82,18 +87,12 @@ def run(chain_fn, mode='chain'):
     hods_truth[:, 2] = np.log10(hods_truth[:, 2])
 
     fixed_params = {}
-    if 'parammean' in testtag:
-        names = cosmo_names + hod_names
-        params_mean = np.loadtxt("../testing_results/parammean.dat")
-        for (name, pm) in zip(names, params_mean):
-            fixed_params[name] = pm
-    else:
-        cosmo_truth = cosmos_truth[cosmo]
-        hod_truth = hods_truth[hod]
-        for (cn, ct) in zip(cosmo_names, cosmo_truth):
-            fixed_params[cn] = ct
-        for (hn, ht) in zip(hod_names, hod_truth):
-            fixed_params[hn] = ht
+    cosmo_truth = cosmos_truth[cosmo]
+    hod_truth = hods_truth[hod]
+    for (cn, ct) in zip(cosmo_names, cosmo_truth):
+        fixed_params[cn] = ct
+    for (hn, ht) in zip(hod_names, hod_truth):
+        fixed_params[hn] = ht
 
     # remove params that we want to vary from fixed param dict and add true values
     truth = {}
@@ -113,51 +112,45 @@ def run(chain_fn, mode='chain'):
     f.create_dataset('lnprob', (0, 0,) , chunks = True, compression = 'gzip', maxshape = (None, None, ))
     f.close()
 
-    print("Stat:", statistic)
     print("True values:")
     print(truth)
 
-    print("Building emulator")
-    emu = emulator.Emulator(statistic, training_dir,  fixed_params=fixed_params, gperr=gperr, hyperparams=hyperparams, log=log, mean=mean, nhod=nhod, kernel_name=kernel_name)
-    emu.build()
-    print("Emulator built")
+    print("Building emulators")
+    emus = [None]*nstats
+    for i, statistic in enumerate(statistics):
+        emu = emulator.Emulator(statistic, training_dirs[i],  fixed_params=fixed_params, gperr=gperr, hyperparams=hyperparams[i], log=logs[i], mean=means[i], nhod=nhods[i], kernel_name=kernel_names[i])
+        emu.build()
+        emus[i] = emu
+        print(f"Emulator for {statistic} built")
 
-    ### Setup covariance matrix ###
-    cov_minerva = np.loadtxt(f'../../clust/results_minerva/{statistic}_cov_minerva.dat')
-    cov_minerva *= (1.5/1.05)**3
+    ### Set up covariance matrix ###
+    stat_str = '_'.join(statistics)
+    cov_minerva_fn = f'../../clust/covariances/cov_minerva_{stat_str}.dat'
+    acc_str = '_'.join(acctags)
+    cov_emu_fn = f"../testing_results/cov_emu_{stat_str}{acc_str}.dat"
+    cov_emuperf_fn = f"../testing_results/cov_emuperf_{stat_str}{acc_str}.dat"
+    if os.path.exists(cov_minerva_fn) and os.path.exists(cov_emu_fn):
+        # cov_minerva = np.loadtxt(cov_minerva_fn)
+        # cov_minerva *= (1.5/1.05)**3
+        # cov_emu = np.loadtxt(cov_emu_fn)
+        # cov = cov_emu + cov_minerva
+        cov = np.loadtxt(cov_emuperf_fn)
+    else:
+        print("No combined covmat exists, making diagonal")
+        covs = []
+        for i, statistic in enumerate(statistics):
+            cov_minerva = np.loadtxt(f'../../clust/covariances/cov_minerva_{statistic}.dat')
+            cov_minerva *= 1./5. * (1.5/1.05)**3
+            cov_emu = np.loadtxt(f"../testing_results/cov_emu_{statistic}{acctags[i]}.dat")
+            covs.append(cov_emu + cov_minerva)
+        cov = block_diag(*covs)
 
-    #cov_test = np.loadtxt(res_dir+"{}_cov{}.dat".format(statistic, errtag))
-
-    cov_emu = np.loadtxt(f"../testing_results/{statistic}_emu_cov{acctag}.dat")
-
-    #cov_perf = np.loadtxt(f"../testing_results/{statistic}_emuperf_cov{acctag}.dat")
-
-    cov = cov_emu + cov_minerva
-
-    #corrmat is the correlation matrix (reduced coviance) from minerva mocks
-    #diagonals are from input calculated error
-    # corrmat = np.loadtxt(f"../../clust/results_minerva/corrmat_minerva_{statistic}.dat")
-    #cov = np.loadtxt(f"../../clust/results_minerva/covmat_minerva_{statistic}.dat")
-    # cov_meas = np.zeros_like(corrmat)
-    # for i in range(corrmat.shape[0]):
-    #     for j in range(corrmat.shape[1]):
-    #         #sigma_i = np.sqrt( (y[i]*emu.gperr[i])**2 + emu_error[i]**2 )
-    #         #sigma_j = np.sqrt( (y[j]*emu.gperr[j])**2 + emu_error[j]**2 )
-    #         sigma_i = y[i]*emu.gperr[i]
-    #         sigma_j = y[j]*emu.gperr[j]
-    #         cov_meas[i][j] = corrmat[i][j] * sigma_i*sigma_j
-
-    # TODO: fix emu_error, should be fractional, then will need to multiply by y too
-    #cov_emu = np.diag(emu_error**2)
-    #cov = cov_meas + cov_emu
-    #err_diag = (emu.gperr*y)**2
-    #cov = np.diag(err_diag)
     print(np.linalg.cond(cov))
     print(cov)    
     
     start = time.time()
     if mode=='chain':
-        res = chain.run_mcmc([emu], param_names, [y], [cov], fixed_params=fixed_params, truth=truth, nwalkers=nwalkers,
+        res = chain.run_mcmc(emus, param_names, ys, cov, fixed_params=fixed_params, truth=truth, nwalkers=nwalkers,
            nsteps=nsteps, nburn=nburn, multi=multi, chain_fn=chain_fn)
         # res = chain.run_mcmc_complete([emu], param_names, [y], [cov], fixed_params=fixed_params, truth=truth, nwalkers=nwalkers,
         # nsteps=nsteps, nburn=nburn, multi=multi, chain_fn=chain_fn)

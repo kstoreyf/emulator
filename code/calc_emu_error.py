@@ -3,42 +3,59 @@ import numpy as np
 
 def main():
 
-    #statistic='wp'
-    statistic='upf'
-    traintag = '_nonolap'
-    testtag = '_mean_test0'
-    #errtag = '_100hod_test0' # for emu
-    errtag = '_hod3_test0'
-    tag = '_log_kM32ExpConst_100hod'
-    gptag = traintag + errtag + tag
-    acctag = gptag + testtag
+    statistics = ['wp','upf']
+    traintags = ['_nonolap', '_nonolap']
+    testtags = ['_mean_test0','_mean_test0']
+    errtags = ['_hod3_test0','_hod3_test0']
+    tags = ['_log_kM32ExpConst2_100hod','_log_kM32ExpConst_100hod']
 
-    nhod_test = 100
-    CC_test = range(0, 7)
-    HH_test = range(0, nhod_test)
+    # statistics = ['upf']
+    # traintags = ['_nonolap']
+    # testtags = ['_mean_test0']
+    # errtags = ['_hod3_test0']
+    # tags = ['_log_kM32ExpConst_100hod']
 
-    print("Computing emu error for", statistic, testtag, acctag)
-    ptests, ppredicts = load_data(statistic, testtag, acctag, CC_test, HH_test)
-    #emu_performance = compute_rmse(ptests, ppredicts)
-    fracerrs = (ptests-ppredicts)/ptests #consider denom here
-    #emu_performance = np.std(fracerrs)
+    acctags = []
+    fracerr_arrs = []
+    for i, statistic in enumerate(statistics):
+        gptag = traintags[i] + errtags[i] + tags[i]
+        acctag = gptag + testtags[i]
+        acctags.append(acctag)
+
+        nhod_test = 100
+        CC_test = range(0, 7)
+        HH_test = range(0, nhod_test)
+
+        print("Computing emu error for", statistic, testtags[i], acctag)
+        ptests, ppredicts = load_data(statistic, testtags[i], acctag, CC_test, HH_test)
+        fracerr_arrs.append((ptests-ppredicts)/ptests)
+
+    fracerrs = np.concatenate(fracerr_arrs, axis=1)
     cov_perf = covariance(fracerrs, zeromean=True)
-    cov_perf *= 5 #bc using mean of 5 testboxes
 
-    res_dir = '../../clust/results_{}/'.format(statistic)
-    errtag = '_hod3_test0' # for cov test
-    cov_test = np.loadtxt(res_dir+"{}_cov{}.dat".format(statistic, errtag))
+    stat_str = '_'.join(statistics)
+    acc_str = ''.join(acctags)
+    save_fn_perf = f"../testing_results/cov_emuperf_{stat_str}{acc_str}.dat"
+    print('Saving cov_perf to', save_fn_perf)
+    np.savetxt(save_fn_perf, cov_perf)
 
-    #cov_performance = cov_emu + cov_test
+    # subtract test cov in order to isolate emulator error
+    # MINERVA as test
+    res_dir = f'../../clust/covariances'
+    cov_minerva = np.loadtxt(f"{res_dir}/cov_minerva_{stat_str}.dat")
+    L_minerva = 1.5 #Gpc
+    L_aemulus = 1.05 #Gpc
+    cov_test = cov_minerva*(L_minerva/L_aemulus)**3
+    if 'mean' in testtags[0]:
+        cov_test *= 1./5. #because using the mean of 5 boxes
+
+    #because cov_performance = cov_emu + cov_test
     cov_emu = cov_perf - cov_test
-    #emu_err = np.sqrt(emu_performance**2 - testset_error**2)
-    print(cov_emu)
-    save_fn = f"../testing_results/{statistic}_emu_cov{acctag}.dat"
-    print('Saving to', save_fn)
+    save_fn = f"../testing_results/cov_emu_{stat_str}{acc_str}.dat"
+    print('Saving cov_emu to', save_fn)
     np.savetxt(save_fn, cov_emu)
 
-    save_fn_perf = f"../testing_results/{statistic}_emuperf_cov{acctag}.dat"
-    np.savetxt(save_fn_perf, cov_perf)
+
 
 
 def load_data(statistic, testtag, acctag, CC_test, HH_test):
