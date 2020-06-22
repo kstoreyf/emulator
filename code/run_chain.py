@@ -14,8 +14,8 @@ import initialize_chain
 
 def main():
     #config_fn = f'../chains/configs/chains_wp_upf_config.cfg'
-    #config_fn = f'../chains/configs/chains_wp_config.cfg'
-    config_fn = f'../chains/configs/chains_upf_config.cfg'
+    config_fn = f'../chains/configs/chains_wp_config.cfg'
+    #config_fn = f'../chains/configs/chains_upf_config.cfg'
     #config_fn = f'../chains/configs/minimize_wp_config.cfg'
     chain_fn = initialize_chain.main(config_fn)
     run(chain_fn)
@@ -142,8 +142,12 @@ def run(chain_fn, mode='chain'):
             cov_minerva = np.loadtxt(f'../../clust/covariances/cov_minerva_{statistic}.dat')
             cov_minerva *= 1./5. * (1.5/1.05)**3
             cov_emu = np.loadtxt(f"../testing_results/cov_emu_{statistic}{acctags[i]}.dat")
-            covs.append(cov_emu + cov_minerva)
+            cov_perf = cov_emu + cov_minerva
+            covs.append(cov_perf)
         cov = block_diag(*covs)
+
+    # FOR TESTING DIAG RN, CHANGE BACK
+    #cov = np.diag(np.diag(cov))
 
     print(np.linalg.cond(cov))
     print(cov)    

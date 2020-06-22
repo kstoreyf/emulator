@@ -457,6 +457,123 @@ def get_training_error():
 
     return sample_var, shot_noise, diffmeans
 
+def plot_training(statistic, res_dir, data_dir, errtag='', subsample=None, version=None, nbins=9, test=False):
+    plt.figure(figsize=(10,8)) 
+    ps = []
+
+    CC = range(0, 40)
+    #CC = range(0,1)
+    #HH = np.loadtxt("../CMASS/Gaussian_Process/GP/HOD_random_subsample_{}_version_{}.dat".format(subsample, version))
+    #HH = np.atleast_2d(HH[0][:3])
+    nhodnonolap = 100
+    nhodpercosmo = 100
+    #nhodpercosmo = 1
+    HH = np.array(range(0,len(CC)*nhodnonolap))
+    HH  = HH.reshape(len(CC), nhodnonolap)
+    HH = HH[:,0:nhodpercosmo]
+    
+    if errtag:
+        GP_error = np.loadtxt(f"{res_dir}/{statistic}_error{errtag}.dat")
+    
+    #color_idx = np.linspace(0, 1, np.max(HH)+1)
+    color_idx = np.linspace(0, 1, len(CC))
+
+    for cosmo in CC:
+        HH_set = HH[cosmo]
+        for hod in HH_set:
+            zz = np.random.randint(len(HH.flatten()))
+            hod = int(hod)
+            color=plt.cm.rainbow(color_idx[cosmo])
+            if test:
+                for box in range(0,5):
+                    fn = '{}/{}_cosmo_{}_Box_{}_HOD_{}_test_0.dat'.format(data_dir, statistic, cosmo, box, hod)
+                    r, p = np.loadtxt(fn, delimiter=',',unpack=True)
+                    if errtag:
+                        plt.errorbar(r[:nbins], p[:nbins], yerr=GP_error[:nbins], lw=0.5, elinewidth=1, capsize=1, color=color, 
+                                     zorder=zz)
+                    else:
+                        plt.plot(r[:nbins], p[:nbins], color=color, lw=0.5, zorder=zz)
+            else:
+                fn = '{}/{}_cosmo_{}_HOD_{}_test_0.dat'.format(data_dir, statistic, cosmo, hod)
+                r, p = np.loadtxt(fn, delimiter=',',unpack=True)
+                if errtag:
+                    plt.errorbar(r[:nbins], p[:nbins], yerr=GP_error[:nbins], lw=0.5, elinewidth=1, capsize=1, color=color, 
+                                 zorder=zz)
+                else:
+                    plt.plot(r[:nbins], p[:nbins], color=color, lw=0.5, zorder=zz)
+                
+    plt.yscale("log")
+    plt.xlabel("r (Mpc/h)") #is it? are positions in Mpc? not h?
+    
+    if statistic == 'upf':
+        plt.ylabel(r"P$_U$(r)")
+        
+    elif statistic == 'wp':
+        plt.ylabel(r'$w_p$($r_p$)')
+        plt.xscale('log')
+    elif statistic == 'mcf':
+        plt.ylabel(r'$M$(r)')
+   
+
+def plot_testing(statistic, testtag, errtag='', nbins=9, onehod=None, nboxes=5):
+    plt.figure(figsize=(10,8)) 
+    ax = plt.gca()
+
+    ncosmos = 7
+    CC_test = range(0, ncosmos)
+    if onehod is not None:
+        HH_test = [onehod]
+        color_idx = np.linspace(0, 1, ncosmos)
+    else:
+        HH_test = range(0, 100)
+        color_idx = np.linspace(0, 1, len(HH_test))
+
+    res_dir = '../../clust/results_{}/'.format(statistic)
+    if errtag:
+        GP_error = np.loadtxt(res_dir+"{}_error{}.dat".format(statistic, errtag))
+   
+    print(HH_test) 
+    boxes = range(nboxes)
+
+    if onehod is not None:
+        colidx = 0
+    for cosmo in CC_test:
+        if onehod is None:
+            colidx = 0
+        for hod in HH_test:
+            for box in boxes:
+                hod = int(hod)
+                
+                color=plt.cm.rainbow(color_idx[colidx])
+
+                idtag = '{}_cosmo_{}_Box_{}_HOD_{}_test_0.dat'.format(statistic, cosmo, box, hod)
+                fnt = '{}testing_{}{}/{}'.format(res_dir, statistic, testtag, idtag)
+                #fnt = '../testing_results/tests_{}{}/{}.dat'.format(statistic, acctag, idtag)
+
+                ntest, ptest = np.loadtxt(fnt, delimiter=',', unpack=True)
+                if errtag:
+                    plt.errorbar(ntest[:nbins], ptest[:nbins], yerr=GP_error[:nbins], lw=0.5, elinewidth=1, capsize=1, color=color)
+                else:
+                    plt.plot(ntest[:nbins], ptest[:nbins], color=color, lw=1)
+            
+            if not onehod:
+                colidx += 1
+        
+        if onehod:
+            colidx += 1
+                   
+    plt.yscale("log")
+    plt.xlabel(r"r ($h^{-1}$Mpc)") #is it? are positions in Mpc? not h?
+    ax.legend()
+    
+    if statistic == 'upf':
+        plt.ylabel(r"P$_U$(r)")
+    elif statistic == 'wp':
+        plt.ylabel(r'$w_p$($r_p$)')
+        plt.xscale('log')
+    elif statistic == 'mcf':
+        plt.ylabel(r'$M$(r)')
+        plt.yscale("linear")
 
 if __name__=="__main__":
     main()
