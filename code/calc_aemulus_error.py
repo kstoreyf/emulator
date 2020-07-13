@@ -7,8 +7,10 @@ def main():
 
     # statistics = ['wp','upf']
     # errtags = ['_hod3_test0','_hod3_test0']s
-    statistics = ['upf']
+    #statistics = ['upf']
+    statistics = ['mcf']
     errtags = ['_hod3_test0']
+    savetag="_investigate_fstar8.0_p1.5"
     
     hod = 3 # choose a middle-of-the-road hod
     nbins = 9
@@ -26,30 +28,29 @@ def main():
 
     devmean_arr = []
     for i, statistic in enumerate(statistics):
-        devmean_arr.append(calculate_devmeans(statistic, hod, cosmos, boxes, tests))
+        testing_dir = '../../clust/results_{}/testing_{}{}/'.format(statistic, statistic, savetag)
+        devmean_arr.append(calculate_devmeans(testing_dir, statistic, hod, cosmos, boxes, tests))
     
     #compute covariance assuming the mean is zero, as that is the expectation value (should be unbiased)
     devmeans = np.concatenate(devmean_arr, axis=1)
     cov = covariance(devmeans, zeromean=True)
 
-    np.savetxt(res_dir+"cov_aemulus_{}{}.dat".format(stat_str, err_str), cov)
+    np.savetxt(res_dir+"cov_aemulus_{}{}{}.dat".format(stat_str, err_str, savetag), cov)
 
     # save std for gp, and percentiles 
     # TODO: I think this should be diagonal error, slightly diff than std??
     err = np.std(devmeans, axis=0)
-    np.savetxt(res_dir+"{}_error{}.dat".format(stat_str, err_str), err)
+    np.savetxt(res_dir+"{}_error{}.dat".format(stat_str, err_str, savetag), err)
     print("err:", err)
     
     p16 = np.percentile(devmeans, 16, axis=0)
     p84 = np.percentile(devmeans, 84, axis=0)
-    np.savetxt(res_dir+"{}_p16{}.dat".format(stat_str, err_str), p16)
-    np.savetxt(res_dir+"{}_p84{}.dat".format(stat_str, err_str), p84)
+    np.savetxt(res_dir+"{}_p16{}.dat".format(stat_str, err_str, savetag), p16)
+    np.savetxt(res_dir+"{}_p84{}.dat".format(stat_str, err_str, savetag), p84)
 
 
 
-def calculate_devmeans(statistic, hod, cosmos, boxes, tests):
-    res_dir = '../../clust/results_{}/'.format(statistic)
-    testing_dir = '../../clust/results_{}/testing_{}/'.format(statistic, statistic)
+def calculate_devmeans(testing_dir, statistic, hod, cosmos, boxes, tests):
 
     devmeans = []
     for cosmo in cosmos:
