@@ -14,8 +14,8 @@ import initialize_chain
 
 def main():
     #config_fn = f'../chains/configs/chains_wp_upf_config.cfg'
-    config_fn = f'../chains/configs/chains_wp_config.cfg'
-    #config_fn = f'../chains/configs/chains_upf_config.cfg'
+    #config_fn = f'../chains/configs/chains_wp_config.cfg'
+    config_fn = f'../chains/configs/chains_upf_config.cfg'
     #config_fn = f'../chains/configs/minimize_wp_config.cfg'
     chain_fn = initialize_chain.main(config_fn)
     run(chain_fn)
