@@ -16,13 +16,17 @@ def main():
     #config_fn = f'../chains/configs/chains_wp_upf_config.cfg'
     #config_fn = f'../chains/configs/chains_wp_config.cfg'
     config_fn = f'../chains/configs/chains_upf_config.cfg'
+    #config_fn = f'../chains/configs/chains_mcf_config.cfg'
+    #config_fn = f'../chains/configs/chains_wp_upf_mcf_config.cfg'
     #config_fn = f'../chains/configs/minimize_wp_config.cfg'
     chain_fn = initialize_chain.main(config_fn)
     run(chain_fn)
     #run(chain_fn, mode='minimize')
 
-def run(chain_fn, mode='chain'):
+def run(chain_fn, mode='chain', overwrite=True):
 
+    if not overwrite and os.path.exists(chain_fn):
+        raise ValueError(f"ERROR: File {chain_fn} already exists! Set overwrite=True to overwrite.")
     f = h5py.File(chain_fn, 'r+')
 
     ### data params
@@ -62,11 +66,13 @@ def run(chain_fn, mode='chain'):
     hyperparams = [None]*nstats
     acctags = [None]*nstats
     ys = []
+    cov_dir = '../../clust/covariances/'
     for i, statistic in enumerate(statistics):
         gptag = traintags[i] + errtags[i] + tags[i]
         acctags[i] = gptag + testtags[i]
         res_dir = '../../clust/results_{}/'.format(statistic)
-        gperr = np.loadtxt(res_dir+"{}_error{}.dat".format(statistic, errtags[i]))
+        #gperr = np.loadtxt(res_dir+"{}_error{}.dat".format(statistic, errtags[i]))
+        gperr = np.loadtxt(cov_dir+"error_aemulus_{}{}.dat".format(statistic, errtags[i]))
         training_dirs[i] = '{}training_{}{}/'.format(res_dir, statistic, traintags[i])
         testing_dirs[i] = '{}testing_{}{}/'.format(res_dir, statistic, testtags[i])
         hyperparams[i] = "../training_results/{}_training_results{}.dat".format(statistic, gptag)
@@ -126,14 +132,20 @@ def run(chain_fn, mode='chain'):
     ### Set up covariance matrix ###
     stat_str = '_'.join(statistics)
     cov_minerva_fn = f'../../clust/covariances/cov_minerva_{stat_str}.dat'
-    acc_str = '_'.join(acctags)
-    cov_emu_fn = f"../testing_results/cov_emu_{stat_str}{acc_str}.dat"
-    cov_emuperf_fn = f"../testing_results/cov_emuperf_{stat_str}{acc_str}.dat"
-    if os.path.exists(cov_minerva_fn) and os.path.exists(cov_emu_fn):
+    #acc_str = '_'.join(acctags)
+    if len(set(traintags))==1 and len(set(errtags))==1 and len(set(testtags))==1:
+        tag_str = traintags[0] + errtags[0] + testtags[0]
+    else:
+        print("Using acctags joined for emu")
+        tag_str.join(acctags)
+    #cov_emu_fn = f"../testing_results/cov_emu_{stat_str}{tag_str}.dat"
+    cov_emuperf_fn = f"{cov_dir}/cov_emuperf_{stat_str}{tag_str}.dat"
+    #if os.path.exists(cov_minerva_fn) and os.path.exists(cov_emu_fn):
         # cov_minerva = np.loadtxt(cov_minerva_fn)
         # cov_minerva *= (1.5/1.05)**3
         # cov_emu = np.loadtxt(cov_emu_fn)
         # cov = cov_emu + cov_minerva
+    if os.path.exists(cov_emuperf_fn):
         cov = np.loadtxt(cov_emuperf_fn)
     else:
         print("No combined covmat exists, making diagonal")

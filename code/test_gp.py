@@ -4,30 +4,28 @@ import os
 import emulator
 
 
-statistic = 'upf'
+#statistic = 'upf'
 #statistic = 'wp'
-traintag = '_nonolap'
-testtag = '_mean_test0'
+statistic = 'mcf'
+savetag = '_fstar8.0_p1.0'
+traintag = savetag+'_nonolap'
+testtag = savetag+'_mean_test0'
 #errtag = '_100hod_test0'
 errtag = '_hod3_test0'
 testmean = True
+testsavetag = ''
 
-nhod_test=100
-#tag = '_emuobj'
-#tag = '_zeromean'
-#tag = '_logleastsq'
-#tag = '_log'
+nhod_test = 100
 nhod = 100
-kernel_name = 'M32ExpConst'
+kernel_name = 'M32Const'
 tag = '_log_k{}_{}hod'.format(kernel_name, nhod)
-savetag = ''
 log = True
 mean = False
 gptag = traintag + errtag + tag
-acctag = gptag + testtag + savetag
+acctag = gptag + testtag + testsavetag
 
 res_dir = '../../clust/results_{}/'.format(statistic)
-gperr = np.loadtxt(res_dir+"{}_error{}.dat".format(statistic, errtag))
+gperr = np.loadtxt("../../clust/covariances/error_aemulus_{}{}{}.dat".format(statistic, errtag, savetag))
 
 training_dir = '{}training_{}{}/'.format(res_dir, statistic, traintag)
 hyperparams = "../training_results/{}_training_results{}.dat".format(statistic, gptag)

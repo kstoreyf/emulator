@@ -11,10 +11,13 @@ sys.path.insert(0, '../../../CMASS/Gaussian_Process/GP/')
 
 
 #statistic = 'wp'
-statistic = 'upf'
-traintag = '_nonolap'
+#statistic = 'upf'
+statistic = 'mcf'
+savetag = '_fstar8.0_p1.0'
+traintag = savetag+'_nonolap'
 nhod = 100
-kernel_name = 'M32ExpConst'
+#nhod = 3
+kernel_name = 'M32Const'
 tag = '_log_k{}_{}hod'.format(kernel_name, nhod)
 log = True
 mean = False
@@ -27,7 +30,7 @@ nbins = 9
 
 res_dir = '../../clust/results_{}/'.format(statistic)
 training_dir = '{}training_{}{}/'.format(res_dir, statistic, traintag)
-gperr = np.loadtxt(res_dir+"{}_error{}.dat".format(statistic, errtag))
+gperr = np.loadtxt("../../clust/covariances/error_aemulus_{}{}{}.dat".format(statistic, errtag, savetag))
 save_hyperparams_fn = "../training_results/{}_training_results{}.dat".format(statistic, gptag)
 
 print("Training, savetag={}".format(gptag))
