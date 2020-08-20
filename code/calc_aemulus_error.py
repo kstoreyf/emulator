@@ -9,7 +9,7 @@ def main():
     #statistics = ['wp','upf','mcf']
     #statistics = ['mcf']
     #statistics = ['upf']
-    statistics = ['wp']
+    statistics = ['xi2']
     #errtag = '_hod3_test0'
     #errtags = ['_hod3_test0']*len(statistics)
     #statistics = ['upf']

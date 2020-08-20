@@ -6,8 +6,10 @@ import emulator
 
 #statistic = 'upf'
 #statistic = 'wp'
-statistic = 'mcf'
-savetag = '_fstar8.0_p1.0'
+#statistic = 'mcf'
+statistic = 'xi2'
+#savetag = '_fstar8.0_p1.0'
+savetag = ''
 traintag = savetag+'_nonolap'
 testtag = savetag+'_mean_test0'
 #errtag = '_100hod_test0'
@@ -17,9 +19,12 @@ testsavetag = ''
 
 nhod_test = 100
 nhod = 100
-kernel_name = 'M32Const'
-tag = '_log_k{}_{}hod'.format(kernel_name, nhod)
-log = True
+#kernel_name = 'M32Const'
+#kernel_name = 'M32ExpConst'
+kernel_name = 'M32ExpConst2'
+tag = '_k{}_{}hod'.format(kernel_name, nhod)
+#log = True
+log = False
 mean = False
 gptag = traintag + errtag + tag
 acctag = gptag + testtag + testsavetag

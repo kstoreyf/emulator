@@ -457,7 +457,7 @@ def get_training_error():
 
     return sample_var, shot_noise, diffmeans
 
-def plot_training(statistic, res_dir, data_dir, errtag='', subsample=None, version=None, nbins=9, test=False):
+def plot_training(statistic, res_dir, data_dir, errtag='', subsample=None, version=None, nbins=9, test=False, times_r2=False):
     plt.figure(figsize=(10,8)) 
     ps = []
 
@@ -484,35 +484,37 @@ def plot_training(statistic, res_dir, data_dir, errtag='', subsample=None, versi
                 for box in range(0,5):
                     fn = '{}/{}_cosmo_{}_Box_{}_HOD_{}_test_0.dat'.format(data_dir, statistic, cosmo, box, hod)
                     r, p = np.loadtxt(fn, delimiter=',',unpack=True)
-                    if errtag:
-                        plt.errorbar(r[:nbins], p[:nbins], yerr=gperr[:nbins], lw=0.5, elinewidth=1, capsize=1, color=color, 
-                                     zorder=zz)
+                    if times_r2:
+                        pplot = r[:nbins]**2 * p[:nbins]
                     else:
-                        plt.plot(r[:nbins], p[:nbins], color=color, lw=0.5, zorder=zz)
+                        pplot = p[:nbins]
+                    if errtag:
+                        plt.errorbar(r[:nbins], pplot, yerr=gperr[:nbins], lw=0.5, elinewidth=1, capsize=1, color=color, zorder=zz)
+                    else:
+                        plt.plot(r[:nbins], pplot, color=color, lw=0.5, zorder=zz)
             else:
                 fn = '{}/{}_cosmo_{}_HOD_{}_test_0.dat'.format(data_dir, statistic, cosmo, hod)
                 r, p = np.loadtxt(fn, delimiter=',',unpack=True)
-                if errtag:
-                    plt.errorbar(r[:nbins], p[:nbins], yerr=gperr[:nbins], lw=0.5, elinewidth=1, capsize=1, color=color, 
-                                 zorder=zz)
+                if times_r2:
+                    pplot = r[:nbins]**2 * p[:nbins]
                 else:
-                    plt.plot(r[:nbins], p[:nbins], color=color, lw=0.5, zorder=zz)
+                    pplot = p[:nbins]
+                if errtag:
+                    plt.errorbar(r[:nbins], pplot, yerr=gperr[:nbins], lw=0.5, elinewidth=1, capsize=1, color=color, zorder=zz)
+                else:
+                    plt.plot(r[:nbins], pplot, color=color, lw=0.5, zorder=zz)
     
     plt.xlabel(r"r ($h^{-1}$Mpc)")
-    
-    if statistic == 'upf':
-        plt.ylabel(r"P$_U$(r)")
+    stat_labels = {'upf':r"P$_U$(r)", 'wp':r'$w_p$($r_p$)', 'mcf':"M(r)", 'xi':r"$\xi_0$(r)", 'xi2':r"$\xi_2$(r)"}    
+    if times_r2:
+        plt.ylabel(r'r$^2$'+stat_labels[statistic])
+    else:
+        plt.ylabel(stat_labels[statistic])
+    if statistic in ['wp', 'upf', 'xi']:
         plt.yscale("log")
-        
-    elif statistic == 'wp':
-        plt.ylabel(r'$w_p$($r_p$)')
+    if statistic in ['wp', 'mcf', 'xi', 'xi2']:
         plt.xscale('log')
-        plt.yscale("log")
-    
-    elif statistic == 'mcf':
-        plt.ylabel("M(r)")
-        plt.xscale('log')               
-   
+
 
 def plot_testing(statistic, testtag, errtag='', nbins=9, onehod=None, nboxes=5):
     plt.figure(figsize=(10,8)) 
@@ -563,19 +565,15 @@ def plot_testing(statistic, testtag, errtag='', nbins=9, onehod=None, nboxes=5):
                    
     ax.legend()
     plt.xlabel(r"r ($h^{-1}$Mpc)")
-    
-    if statistic == 'upf':
-        plt.ylabel(r"P$_U$(r)")
+    stat_labels = {'upf':r"P$_U$(r)", 'wp':r'$w_p$($r_p$)', 'mcf':"M(r)", 'xi':r"$\xi_0$(r)", 'xi2':r"$\xi_2$(r)"}
+    if times_r2:
+        plt.ylabel(r'r$^2$'+stat_labels[statistic])
+    else:
+        plt.ylabel(stat_labels[statistic])
+    if statistic in ['wp', 'upf', 'xi']:
         plt.yscale("log")
-        
-    elif statistic == 'wp':
-        plt.ylabel(r'$w_p$($r_p$)')
+    if statistic in ['wp', 'mcf', 'xi', 'xi2']:
         plt.xscale('log')
-        plt.yscale("log")
-    
-    elif statistic == 'mcf':
-        plt.ylabel("M(r)")
-        plt.xscale('log')    
 
 
 def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=100, err_as_percentiles=False, sample_var='aemulus'):
@@ -613,6 +611,7 @@ def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=1
             fnt = '{}testing_{}{}/{}.dat'.format(res_dir, statistic, testtag, idtag)
 
             ntest, ptest = np.loadtxt(fnt)
+            #ntest, ptest = np.loadtxt(fnt, delimiter=',', unpack=True)
             stat_mean += ptest[:nbins]
         
     stat_mean /= len(CC_test)*len(HH_test)
@@ -636,6 +635,7 @@ def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=1
             alpha = 1
             fnt = '{}testing_{}{}/{}.dat'.format(res_dir, statistic, testtag, idtag)        
             ntest, ptest = np.loadtxt(fnt)
+            #ntest, ptest = np.loadtxt(fnt, delimiter=',', unpack=True)
             if i==0:
                 ax[0].plot(ntest[:nbins], ptest[:nbins], marker='o', ls='None', markerfacecolor='None', 
                                markeredgecolor=color, lw=lw, alpha=alpha, label='truth')
@@ -655,6 +655,12 @@ def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=1
             
 
             fracerr = (ppredic-ptest)/ptest
+            #print(fracerr)
+            if fracerr[5]>10:
+                print(fracerr)
+                #print(ptest)
+                #print(ppredic)
+                continue
             fracerrs.append(fracerr)
             ax[1].plot(ntest[:nbins], fracerr[:nbins], color=color, lw=lw, alpha=alpha)
             i += 1
@@ -670,29 +676,17 @@ def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=1
     ax[2].legend()
     
     ax[0].legend()
+    
+    ax[2].set_xlabel(r"r ($h^{-1}$Mpc)")
+    stat_labels = {'upf':r"P$_U$(r)", 'wp':r'$w_p$($r_p$)', 'mcf':"M(r)", 'xi':r"$\xi_0$(r)", 'xi2':r"$\xi_2$(r)"}
+    ax[0].set_ylabel(stat_labels[statistic])
+    if statistic in ['wp', 'upf', 'xi']:
+        ax[0].set_yscale('log')
+    if statistic in ['wp', 'mcf', 'xi', 'xi2']:
+        for nc in range(ncols):
+            ax[nc].set_xscale('log')
               
     ax[1].set_ylabel("fractional error")
-    if statistic == 'upf':
-        ax[0].set_ylabel(r"P$_U$(r)")
-        #ax[idx_err].set_ylabel(r"(P$_{emulator}$-P$_{true}$)/P$_{true}$")
-        ax[2].set_xlabel(r"$r$ ($h^{-1}$Mpc)")
-        for nc in range(ncols):
-            ax[nc].set_yscale('log')
-
-    elif statistic == 'wp':
-        ax[0].set_ylabel(r'$w_p$($r_p$)')
-        #ax[idx_err].set_ylabel(r"($w_{p,emu}$-$w_{p,true}$)/$w_{p,true}$")
-        ax[2].set_xlabel(r"$r$ ($h^{-1}$Mpc)")
-        for nc in range(ncols):
-            ax[nc].set_xscale('log')
-            ax[nc].set_yscale('log')
-
-    elif statistic == 'mcf':
-        ax[0].set_ylabel(r'M(r)')
-        #ax[idx_err].set_ylabel(r"($w_{p,emu}$-$w_{p,true}$)/$w_{p,true}$")
-        ax[2].set_xlabel(r"$r$ ($h^{-1}$Mpc)")
-        for nc in range(ncols):
-            ax[nc].set_xscale('log')
 
 
 def compare_emulators(statistic, testtags, acctags, errtag, savetags, labels=None, subsample=None, nbins=9, remove=None,
@@ -776,7 +770,9 @@ def compare_emulators(statistic, testtags, acctags, errtag, savetags, labels=Non
         stat_str = statistic
         err_str = errtag
         cov_dir = "../../clust/covariances/"
-        gperr = np.loadtxt(cov_dir+"error_aemulus_{}{}{}.dat".format(stat_str, err_str, savetag))
+        #gperr = np.loadtxt(cov_dir+"error_aemulus_{}{}{}.dat".format(stat_str, err_str, savetag))
+        gpcov = np.loadtxt(cov_dir+"cov_aemulus_{}{}{}.dat".format(stat_str, err_str, savetag))
+        gperr = np.sqrt(1./5.*np.diag(gpcov))
         gpp16 = np.loadtxt(cov_dir+"p16_aemulus_{}{}{}.dat".format(stat_str, err_str, savetag))
         gpp84 = np.loadtxt(cov_dir+"p84_aemulus_{}{}{}.dat".format(stat_str, err_str, savetag))
 
@@ -795,8 +791,8 @@ def compare_emulators(statistic, testtags, acctags, errtag, savetags, labels=Non
 
     ax[0].legend()
     
-    plt.xlabel("r (Mpc/h)") #is it? are positions in Mpc? not h?
-    if statistic=='wp' or statistic=='mcf':
+    plt.xlabel(r"r ($h^{-1}$Mpc)")
+    if statistic in ['wp', 'mcf', 'xi', 'xi2']:
         ax[0].set_xscale('log')
         ax[1].set_xscale('log')
 

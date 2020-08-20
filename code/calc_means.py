@@ -4,9 +4,11 @@ import os
 
 #statistic = 'wp'
 #statistic = 'upf'
-statistic = 'mcf'
+#statistic = 'mcf'
+statistic = 'xi2'
 
-testtag = '_fstar8.0_p1.0'
+#testtag = '_fstar8.0_p1.0'
+testtag = ''
 meantag = '_test0'
 
 nbins = 9

@@ -13,17 +13,17 @@ import initialize_chain
 
 
 def main():
-    #config_fn = f'../chains/configs/chains_wp_upf_config.cfg'
+    config_fn = f'../chains/configs/chains_wp_upf_config.cfg'
     #config_fn = f'../chains/configs/chains_wp_config.cfg'
-    config_fn = f'../chains/configs/chains_upf_config.cfg'
+    #config_fn = f'../chains/configs/chains_upf_config.cfg'
     #config_fn = f'../chains/configs/chains_mcf_config.cfg'
     #config_fn = f'../chains/configs/chains_wp_upf_mcf_config.cfg'
     #config_fn = f'../chains/configs/minimize_wp_config.cfg'
-    chain_fn = initialize_chain.main(config_fn)
+    chain_fn = initialize_chain.main(config_fn, overwrite=False)
     run(chain_fn)
     #run(chain_fn, mode='minimize')
 
-def run(chain_fn, mode='chain', overwrite=True):
+def run(chain_fn, mode='chain', overwrite=False):
 
     if not overwrite and os.path.exists(chain_fn):
         raise ValueError(f"ERROR: File {chain_fn} already exists! Set overwrite=True to overwrite.")

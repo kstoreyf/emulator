@@ -35,3 +35,32 @@ def inverse_covariance(cov, N):
     Nb = cov.shape[0]
     prefac = float(N - Nb - 2)/float(N - 1)
     return prefac * inv
+
+
+def get_emulator_bounds():
+    bounds = {}
+    cosmo_names = ['Omega_m', 'Omega_b', 'sigma_8', 'h', 'n_s', 'N_eff', 'w']
+    hod_names = ['M_sat', 'alpha', 'M_cut', 'sigma_logM', 'v_bc', 'v_bs', 'c_vir', 'f', 'f_env', 'delta_env', 'sigma_env']
+
+    cosmos_train = np.loadtxt('../tables/cosmology_camb_full.dat') # 40
+    hods_train = np.loadtxt('../tables/HOD_design_np11_n5000_new_f_env.dat') # 5000
+    hods_train[:, 0] = np.log10(hods_train[:, 0])
+    hods_train[:, 2] = np.log10(hods_train[:, 2])
+
+    for pname in cosmo_names:
+        pidx = cosmo_names.index(pname)
+        vals = cosmos_train[:,pidx]
+        pmin = np.min(vals)
+        pmax = np.max(vals)
+        buf = (pmax-pmin)*0.1
+        bounds[pname] = [pmin-buf, pmax+buf]
+
+    for pname in hod_names:
+        pidx = hod_names.index(pname)
+        vals = hods_train[:,pidx]
+        pmin = np.min(vals)
+        pmax = np.max(vals)
+        buf = (pmax-pmin)*0.1
+        bounds[pname] = [pmin-buf, pmax+buf]
+
+    return bounds
