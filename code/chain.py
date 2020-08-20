@@ -45,11 +45,13 @@ def lnlike(theta, param_names, fixed_params, ys, cov):
         #time.sleep(1)
         #pred = np.random.random(len(ys))*np.array(ys)
         emu_preds.append(pred)
+
     emu_pred = np.hstack(emu_preds)
-    diff = np.array(emu_pred) - np.array(ys)
+    #diff = np.array(emu_pred) - np.array(ys)
+    diff = (np.array(emu_pred) - np.array(ys))/np.array(ys) #fractional error
     diff = diff.flatten()
 
-    #like = np.sum(diff**2/combined_inv_cov)
+    #like = np.sum(diff**2/combined_inv_cov) #chi^2
     #like = -np.dot(diff, np.dot(combined_inv_cov, diff.T).T) / 2.0
     like = -0.5 * np.dot(diff, np.linalg.solve(cov, diff))
     
@@ -72,19 +74,18 @@ def _random_initial_guess(param_names, nwalkers, num_params):
     return pos0
 
 
-def run_minimizer(emus, param_names, ys, covs, fixed_params={}, truth={}, chain_fn=None):
+def run_minimizer(emus, param_names, ys, cov, fixed_params={}, truth={}, chain_fn=None):
 
     global _emus
     _emus = emus
 
     num_params = len(param_names)
-    cov = block_diag(*covs) # TODO: check how to deal w multiple cov mats, this is my guess
 
     truths = [truth[pname] for pname in param_names]
     f = h5py.File(chain_fn, 'r+')
     f.attrs['true_values'] = truths
 
-    args = (param_names, fixed_params, ys, combined_inv_cov)
+    args = (param_names, fixed_params, ys, cov)
     
     p0 = _random_initial_guess(param_names, 1, num_params)
     bounds = [_emus[0].get_param_bounds(pname) for pname in param_names]
@@ -103,14 +104,13 @@ def run_minimizer(emus, param_names, ys, covs, fixed_params={}, truth={}, chain_
 
 
 
-def run_mcmc(emus, param_names, ys, covs, fixed_params={}, truth={}, nwalkers=24,
+def run_mcmc(emus, param_names, ys, cov, fixed_params={}, truth={}, nwalkers=24,
         nsteps=100, nburn=20, plot_fn=None, multi=True, chain_fn=None):
 
     global _emus
     _emus = emus
 
     num_params = len(param_names)
-    cov = block_diag(*covs) # TODO: properly compute covariance bw observables
     args = [param_names, fixed_params, ys, cov]
     
     ncpu = mp.cpu_count()
@@ -170,14 +170,13 @@ def run_mcmc(emus, param_names, ys, covs, fixed_params={}, truth={}, nwalkers=24
 
         
 
-def run_mcmc_complete(emus, param_names, ys, covs, fixed_params={}, truth={}, nwalkers=1000,
+def run_mcmc_complete(emus, param_names, ys, cov, fixed_params={}, truth={}, nwalkers=1000,
         nsteps=100, nburn=20, plot_fn=None, multi=True, chain_fn=None):
 
     global _emus
     _emus = emus
 
     num_params = len(param_names)
-    cov = block_diag(*covs) # TODO: properly compute covariance bw observables
     args = [param_names, fixed_params, ys, cov]
     
     ncpu = mp.cpu_count()

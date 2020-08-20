@@ -9,7 +9,7 @@ import gp_trainer as trainer
 
 class Emulator:
 
-    def __init__(self, statistic, training_dir, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, testmean=True, log=False, mean=False, nhod=80, kernel_name=None, nhod_test=100):
+    def __init__(self, statistic, training_dir, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, testmean=True, log=False, mean=False, nhod=100, kernel_name=None, nhod_test=100):
         
         print("george version:", george.__version__) 
         # set parameters
@@ -299,6 +299,7 @@ class Emulator:
         kernel_dict = {'M32ExpConst': k1*k5 + k2,
                    'M32ExpConst2': k1*k5 + k2 + k3,
                    'M32Const': k2 + k5}
+        assert self.kernel_name in kernel_dict, f"{self.kernel_name} not in dict!"
         kernel = kernel_dict[self.kernel_name]
         return kernel
 
