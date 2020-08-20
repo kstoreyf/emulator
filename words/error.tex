@@ -23,11 +23,10 @@
 Our goal is to compute the likelihood function used to estimate model parameters with our emulator.
 The log-likelihood $\like$ can be defined as 
 \begin{equation}
-    \like = -\frac{1}{2} \bigg( \frac{\y{pred} - \y{test}}{\y{test}} \bigg)\T \covtot\inv \bigg( \frac{\y{pred} - \y{test}}{\y{test}} \bigg)
+    \like = -\frac{1}{2} \bigg( \frac{\y{pred} - \y{data}}{\y{data}} \bigg)\T \covtot\inv \bigg( \frac{\y{pred} - \y{data}}{\y{data}} \bigg)
 \end{equation}
 where $\covtot$ is the covariance matrix, and $y$ is the clustering statistic we are emulating.
-\KSF{should ``test'' be ``data''?}
-Here $\y{test}$ is the statistic computed on a mock or data, and $\y{pred}$ is the emulator prediction for that statistic. 
+Here $\y{data}$ is the statistic computed on a mock or data, and $\y{pred}$ is the emulator prediction for that statistic. 
 We take $y$ to have $P$ dimensions (radial bins in our case), and $\covtot$ to be a $P \times P$ matrix.
 
 This document outlines how we compute this covariance matrix, which we define as
@@ -102,7 +101,7 @@ We note that the random seeds, which we have not yet included, estimate the shot
 \section{Measurement covariance with Minerva}
 
 We can estimate $\cov{test}$, the covariance between the bins of the statistic, with other sets of simulations that may have advantages to Aemulus.
-Here we use Minerva, which have a larger volume than Aemulus simulations, with side length $L_\text{minerva}=1.5$ Gpc.
+Here we use Minerva, for which we have more simulations and a larger volume than Aemulus simulations, with side length $L_\text{minerva}=1.5$ Gpc.
 We compute the statistic on $M=100$ Minerva mocks, which we index by $m$.
 The Minerva covariance matrix $\cov{minerva}$ is given by
 \begin{eqnarray}
