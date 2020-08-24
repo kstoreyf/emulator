@@ -58,9 +58,6 @@ def run(chain_fn, mode='chain', overwrite=False):
 
     # Set file and directory names
     nstats = len(statistics)
-    # training_dirs = np.empty(nstats, dtype=str)
-    # testing_dirs = np.empty(nstats, dtype=str)
-    # hyperparams = np.empty(nstats, dtype=str)
     training_dirs = [None]*nstats
     testing_dirs = [None]*nstats
     hyperparams = [None]*nstats
@@ -138,28 +135,30 @@ def run(chain_fn, mode='chain', overwrite=False):
     else:
         print("Using acctags joined for emu")
         tag_str.join(acctags)
-    #cov_emu_fn = f"../testing_results/cov_emu_{stat_str}{tag_str}.dat"
+    # for now, use performace covariance on aemulus test set (see emulator/words/error.pdf)
     cov_emuperf_fn = f"{cov_dir}/cov_emuperf_{stat_str}{tag_str}.dat"
+    #cov_emu_fn = f"../testing_results/cov_emu_{stat_str}{tag_str}.dat"
+    if os.path.exists(cov_emuperf_fn):
+        cov = np.loadtxt(cov_emuperf_fn)
+    else:
+        raise ValueError(f"Path to covmat {cov_emuperf_fn} doesn't exist!")
+
+    # eventually will combine emu covariance with some test covariance, e.g. from minerva
     #if os.path.exists(cov_minerva_fn) and os.path.exists(cov_emu_fn):
         # cov_minerva = np.loadtxt(cov_minerva_fn)
         # cov_minerva *= (1.5/1.05)**3
         # cov_emu = np.loadtxt(cov_emu_fn)
         # cov = cov_emu + cov_minerva
-    if os.path.exists(cov_emuperf_fn):
-        cov = np.loadtxt(cov_emuperf_fn)
-    else:
-        print("No combined covmat exists, making diagonal")
-        covs = []
-        for i, statistic in enumerate(statistics):
-            cov_minerva = np.loadtxt(f'../../clust/covariances/cov_minerva_{statistic}.dat')
-            cov_minerva *= 1./5. * (1.5/1.05)**3
-            cov_emu = np.loadtxt(f"../testing_results/cov_emu_{statistic}{acctags[i]}.dat")
-            cov_perf = cov_emu + cov_minerva
-            covs.append(cov_perf)
-        cov = block_diag(*covs)
-
-    # FOR TESTING DIAG RN, CHANGE BACK
-    #cov = np.diag(np.diag(cov))
+    # else:
+    #     print("No combined covmat exists, making diagonal")
+    #     covs = []
+    #     for i, statistic in enumerate(statistics):
+    #         cov_minerva = np.loadtxt(f'../../clust/covariances/cov_minerva_{statistic}.dat')
+    #         cov_minerva *= 1./5. * (1.5/1.05)**3
+    #         cov_emu = np.loadtxt(f"../testing_results/cov_emu_{statistic}{acctags[i]}.dat")
+    #         cov_perf = cov_emu + cov_minerva
+    #         covs.append(cov_perf)
+    #     cov = block_diag(*covs)
 
     print(np.linalg.cond(cov))
     print(cov)    
@@ -168,8 +167,6 @@ def run(chain_fn, mode='chain', overwrite=False):
     if mode=='chain':
         res = chain.run_mcmc(emus, param_names, ys, cov, fixed_params=fixed_params, truth=truth, nwalkers=nwalkers,
            nsteps=nsteps, nburn=nburn, multi=multi, chain_fn=chain_fn)
-        # res = chain.run_mcmc_complete([emu], param_names, [y], [cov], fixed_params=fixed_params, truth=truth, nwalkers=nwalkers,
-        # nsteps=nsteps, nburn=nburn, multi=multi, chain_fn=chain_fn)
     elif mode=='minimize':
         res = chain.run_minimizer([emu], param_names, [y], [cov], fixed_params=fixed_params, truth=truth, chain_fn=chain_fn)
     else:
