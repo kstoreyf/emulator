@@ -7,6 +7,7 @@ import emulator
 #statistic = 'upf'
 #statistic = 'wp'
 #statistic = 'mcf'
+#statistic = 'xi'
 statistic = 'xi2'
 #savetag = '_fstar8.0_p1.0'
 savetag = ''
@@ -22,10 +23,12 @@ nhod = 100
 #kernel_name = 'M32Const'
 #kernel_name = 'M32ExpConst'
 kernel_name = 'M32ExpConst2'
-tag = '_k{}_{}hod'.format(kernel_name, nhod)
+tag = '_meansub_xrsq_k{}_{}hod'.format(kernel_name, nhod)
 #log = True
 log = False
 mean = False
+meansub = True
+xrsq = True
 gptag = traintag + errtag + tag
 acctag = gptag + testtag + testsavetag
 
@@ -39,6 +42,8 @@ testing_dir = '{}testing_{}{}/'.format(res_dir, statistic, testtag)
 predict_savedir = f"../testing_results/predictions_{statistic}{acctag}/"
 os.makedirs(predict_savedir, exist_ok=True)
 
-emu = emulator.Emulator(statistic, training_dir, testing_dir=testing_dir, gperr=gperr, testmean=testmean, hyperparams=hyperparams, log=log, mean=mean, nhod=nhod, nhod_test=nhod_test, kernel_name=kernel_name)
+emu = emulator.Emulator(statistic, training_dir, testing_dir=testing_dir, 
+            gperr=gperr, testmean=testmean, hyperparams=hyperparams, log=log, 
+            mean=mean, meansub=meansub, xrsq=xrsq, nhod=nhod, nhod_test=nhod_test, kernel_name=kernel_name)
 emu.build()
 emu.test(predict_savedir)
