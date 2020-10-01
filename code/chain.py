@@ -7,7 +7,7 @@ import multiprocessing as mp
 import h5py
 from scipy.linalg import block_diag
 from scipy import optimize
-import time
+import time\
 
 from schwimmbad import MultiPool
 import emcee
@@ -32,7 +32,7 @@ def lnprior(theta, param_names, *args):
 
 
 def lnlike(theta, param_names, fixed_params, ys, cov):
-
+    s = time.time()
     theta = np.array(theta).flatten() #theta looks like [[[p]]] for some reason
     param_dict = dict(zip(param_names, theta)) #weirdly necessary for Powell minimization
     param_dict.update(fixed_params)
@@ -48,7 +48,8 @@ def lnlike(theta, param_names, fixed_params, ys, cov):
 
     # the solve is a better way to get the inverse
     like = -0.5 * np.dot(diff, np.linalg.solve(cov, diff))
-        
+    e = time.time()
+    print("like call:", e-s, "s; like =", like)
     return like
 
 

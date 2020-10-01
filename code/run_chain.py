@@ -13,14 +13,14 @@ import initialize_chain
 
 
 def main():
-    config_fn = f'../chains/configs/chains_wp_upf_config.cfg'
-    #config_fn = f'../chains/configs/chains_wp_config.cfg'
+    #config_fn = f'../chains/configs/chains_wp_upf_config.cfg'
+    config_fn = f'../chains/configs/chains_wp_config.cfg'
     #config_fn = f'../chains/configs/chains_upf_config.cfg'
     #config_fn = f'../chains/configs/chains_mcf_config.cfg'
     #config_fn = f'../chains/configs/chains_wp_upf_mcf_config.cfg'
     #config_fn = f'../chains/configs/minimize_wp_config.cfg'
-    chain_fn = initialize_chain.main(config_fn, overwrite=False)
-    run(chain_fn)
+    chain_fn = initialize_chain.main(config_fn)
+    run(chain_fn, overwrite=True)
     #run(chain_fn, mode='minimize')
 
 def run(chain_fn, mode='chain', overwrite=False):
@@ -136,7 +136,7 @@ def run(chain_fn, mode='chain', overwrite=False):
         print("Using acctags joined for emu")
         tag_str.join(acctags)
     # for now, use performace covariance on aemulus test set (see emulator/words/error.pdf)
-    cov_emuperf_fn = f"{cov_dir}/cov_emuperf_{stat_str}{tag_str}.dat"
+    cov_emuperf_fn = f"{cov_dir}cov_emuperf_{stat_str}{tag_str}.dat"
     #cov_emu_fn = f"../testing_results/cov_emu_{stat_str}{tag_str}.dat"
     if os.path.exists(cov_emuperf_fn):
         cov = np.loadtxt(cov_emuperf_fn)

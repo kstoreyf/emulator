@@ -273,7 +273,6 @@ class Emulator:
 
         for CID_test in CC_test:
             for HID_test in HH_test:
-                hods_test_hid = hods_test[HID_test,:]
 
                 if self.testmean:
                     idtag = "cosmo_{}_HOD_{}_mean".format(CID_test, HID_test)
