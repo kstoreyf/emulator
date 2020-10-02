@@ -13,17 +13,18 @@ import initialize_chain
 
 
 def main():
-    #config_fn = f'../chains/configs/chains_wp_upf_config.cfg'
-    config_fn = f'../chains/configs/chains_wp_config.cfg'
+    #config_fn = f'../chain_configs/chains_wp.cfg'
+    #config_fn = f'../chain_configs/chains_wp_upf.cfg'
+    config_fn = f'../chain_configs/chains_wp_upf_mcf.cfg'
+    
     #config_fn = f'../chains/configs/chains_upf_config.cfg'
     #config_fn = f'../chains/configs/chains_mcf_config.cfg'
-    #config_fn = f'../chains/configs/chains_wp_upf_mcf_config.cfg'
     #config_fn = f'../chains/configs/minimize_wp_config.cfg'
     chain_fn = initialize_chain.main(config_fn)
     run(chain_fn, overwrite=True)
     #run(chain_fn, mode='minimize')
 
-def run(chain_fn, mode='chain', overwrite=False):
+def run(chain_fn, mode='dynesty', overwrite=False):
 
     if not overwrite and os.path.exists(chain_fn):
         raise ValueError(f"ERROR: File {chain_fn} already exists! Set overwrite=True to overwrite.")
@@ -49,12 +50,13 @@ def run(chain_fn, mode='chain', overwrite=False):
 
     ### chain params4
     # required
-    nwalkers = f.attrs['nwalkers']
-    nburn = f.attrs['nburn']
-    nsteps = f.attrs['nsteps']
     param_names = f.attrs['param_names']
     # optional
     multi = f.attrs['multi']
+    nwalkers = f.attrs['nwalkers']
+    nburn = f.attrs['nburn']
+    nsteps = f.attrs['nsteps']
+    dlogz = f.attrs['dlogz']
 
     # Set file and directory names
     nstats = len(statistics)
@@ -164,11 +166,17 @@ def run(chain_fn, mode='chain', overwrite=False):
     print(cov)    
     
     start = time.time()
-    if mode=='chain':
-        res = chain.run_mcmc(emus, param_names, ys, cov, fixed_params=fixed_params, truth=truth, nwalkers=nwalkers,
-           nsteps=nsteps, nburn=nburn, multi=multi, chain_fn=chain_fn)
+    if mode=='emcee':
+        res = chain.run_mcmc(emus, param_names, ys, cov, fixed_params=fixed_params, 
+                             truth=truth, nwalkers=nwalkers, nsteps=nsteps, 
+                             nburn=nburn, multi=multi, chain_fn=chain_fn)
+    elif mode=='dynesty':
+        res = chain.run_mcmc_dynesty(emus, param_names, ys, cov, fixed_params=fixed_params, 
+                                     truth=truth, multi=multi, chain_fn=chain_fn,
+                                     dlogz=dlogz)
     elif mode=='minimize':
-        res = chain.run_minimizer([emu], param_names, [y], [cov], fixed_params=fixed_params, truth=truth, chain_fn=chain_fn)
+        res = chain.run_minimizer([emu], param_names, [y], [cov], fixed_params=fixed_params, 
+                                  truth=truth, chain_fn=chain_fn)
     else:
         raise ValueError(f"Mode {mode} not recognized!")
 
