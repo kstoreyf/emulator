@@ -7,11 +7,11 @@ import multiprocessing as mp
 import h5py
 from scipy.linalg import block_diag
 from scipy import optimize
-import time\
+import time
 
 from schwimmbad import MultiPool
 import emcee
-import corner
+import dynesty
 
 
 def lnprob(theta, *args):
@@ -29,6 +29,17 @@ def lnprior(theta, param_names, *args):
         if np.isnan(t) or t<low or t>high:
             return -np.inf
     return 0
+
+
+def prior_transform(u, param_names):
+    # print("PRIOR")
+    # print(param_names)
+    v = np.array(u)
+    for i, pname in enumerate(param_names):
+        # all emus should have same bounds, so just get first
+        low, high = _emus[0].get_param_bounds(pname)
+        v[i] = u[i]*(high-low)+low
+    return v
 
 
 def lnlike(theta, param_names, fixed_params, ys, cov):
@@ -49,7 +60,7 @@ def lnlike(theta, param_names, fixed_params, ys, cov):
     # the solve is a better way to get the inverse
     like = -0.5 * np.dot(diff, np.linalg.solve(cov, diff))
     e = time.time()
-    print("like call:", e-s, "s; like =", like)
+    print("like call: theta=", theta, "; time=", e-s, "s; like =", like)
     return like
 
 
@@ -138,6 +149,68 @@ def run_mcmc(emus, param_names, ys, cov, fixed_params={}, truth={}, nwalkers=24,
             if rem != 0:
                 continue
 
+            print('iti:', iti)
+            f = h5py.File(chain_fn, 'r+')
+
+            chain_dset = f['chain']
+            lnprob_dset = f['lnprob']
+            chain_dset.resize((nwalkers, iti, len(param_names)))
+            lnprob_dset.resize((nwalkers, iti))
+        
+            chain_dset[:,iti-itsave:iti,:] = chain_chunk
+            lnprob_dset[:,iti-itsave:iti] = lnprob_chunk
+
+            f.close()
+
+            chain_chunk = np.empty((nwalkers, itsave, len(param_names))) 
+            lnprob_chunk = np.empty((nwalkers, itsave)) 
+
+
+def run_mcmc_dynesty(emus, param_names, ys, cov, fixed_params={}, truth={}, 
+                     plot_fn=None, multi=True, chain_fn=None, dlogz=0.5):
+
+    global _emus
+    _emus = emus
+
+    nwalkers = 1 #make this have a dimension to line up with emcee chains
+    num_params = len(param_names)
+    args = [param_names, fixed_params, ys, cov]
+    prior_args = [param_names]
+
+    f = h5py.File(chain_fn, 'r+')
+    if 'dlogz' not in f.attrs:
+        f.attrs['dlogz'] = dlogz
+    f.close()
+
+    ncpu = mp.cpu_count()
+    print(f"{ncpu} CPUs")
+
+    print('truth:', truth)
+    with mp.Pool() as pool:
+        if multi:
+            print("multi")
+            sampler = dynesty.NestedSampler(lnlike, prior_transform, num_params, logl_args=args, 
+                                            ptform_args=prior_args, pool=pool, queue_size=ncpu)
+        else:
+            print("serial")
+            sampler = dynesty.NestedSampler(lnlike, prior_transform, num_params, logl_args=args,
+                                            ptform_args=prior_args)
+
+        itsave = 100
+        chain_chunk = np.empty((nwalkers, itsave, len(param_names))) 
+        lnprob_chunk = np.empty((nwalkers, itsave)) 
+        for it, result in enumerate(sampler.sample(dlogz=dlogz)):
+            iti = it + 1
+            rem = iti % itsave
+            print('iti:', iti)
+            print(result)
+            chain_chunk[:,rem-1,:] = result[2]
+            lnprob_chunk[:,rem-1] = result[3]
+
+            if rem != 0:
+                continue
+
+            print("SAVING")
             print('iti:', iti)
             f = h5py.File(chain_fn, 'r+')
 
