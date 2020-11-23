@@ -14,14 +14,17 @@ import initialize_chain
 
 def main():
     #config_fn = f'../chain_configs/chains_wp.cfg'
+    #config_fn = f'../chain_configs/chains_wp_xi.cfg'
     #config_fn = f'../chain_configs/chains_wp_upf.cfg'
-    config_fn = f'../chain_configs/chains_wp_upf_mcf.cfg'
+    #config_fn = f'../chain_configs/chains_wp_mcf.cfg'
+    #config_fn = f'../chain_configs/chains_wp_upf_mcf.cfg'
+    #config_fn = f'../chain_configs/chains_wp_xi_upf.cfg'
+    #config_fn = f'../chain_configs/chains_wp_xi_mcf.cfg'
+    config_fn = f'../chain_configs/chains_wp_xi_upf_mcf.cfg'
     
-    #config_fn = f'../chains/configs/chains_upf_config.cfg'
-    #config_fn = f'../chains/configs/chains_mcf_config.cfg'
     #config_fn = f'../chains/configs/minimize_wp_config.cfg'
     chain_fn = initialize_chain.main(config_fn)
-    run(chain_fn, overwrite=True)
+    run(chain_fn, overwrite=True, mode='dynesty')
     #run(chain_fn, mode='minimize')
 
 def run(chain_fn, mode='dynesty', overwrite=False):
@@ -57,6 +60,9 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     nburn = f.attrs['nburn']
     nsteps = f.attrs['nsteps']
     dlogz = f.attrs['dlogz']
+    seed = f.attrs['seed']
+    print(seed)
+    print(nwalkers)
 
     # Set file and directory names
     nstats = len(statistics)
@@ -109,12 +115,15 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     truths = [truth[pname] for pname in param_names]
     f.attrs['true_values'] = truths
     #for now will overwrite
-    if 'chain' in f.keys():
-        del f['chain']
-    if 'lnprob' in f.keys():
-        del f['lnprob']
+    dsetnames = ['chain', 'lnprob', 'lnweight', 'lnevidence', 'varlnevidence']
+    for dsn in dsetnames:
+        if dsn in f.keys():
+            del f[dsn]
     f.create_dataset('chain', (0, 0, len(param_names)), chunks = True, compression = 'gzip', maxshape = (None, None, len(param_names)))
     f.create_dataset('lnprob', (0, 0,) , chunks = True, compression = 'gzip', maxshape = (None, None, ))
+    f.create_dataset('lnweight', (0, 0,), chunks = True, compression = 'gzip', maxshape = (None, None, ))
+    f.create_dataset('lnevidence', (0, 0,), chunks = True, compression = 'gzip', maxshape = (None, None, ))
+    f.create_dataset('varlnevidence', (0, 0,), chunks = True, compression = 'gzip', maxshape = (None, None, ))
     f.close()
 
     print("True values:")
@@ -173,7 +182,7 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     elif mode=='dynesty':
         res = chain.run_mcmc_dynesty(emus, param_names, ys, cov, fixed_params=fixed_params, 
                                      truth=truth, multi=multi, chain_fn=chain_fn,
-                                     dlogz=dlogz)
+                                     dlogz=dlogz, seed=seed)
     elif mode=='minimize':
         res = chain.run_minimizer([emu], param_names, [y], [cov], fixed_params=fixed_params, 
                                   truth=truth, chain_fn=chain_fn)
