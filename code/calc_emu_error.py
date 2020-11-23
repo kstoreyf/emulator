@@ -7,7 +7,8 @@ def main():
 
     compute_instrinsic_emu_error = False
     #statistics = ['wp','upf','mcf']
-    statistics = ['wp', 'upf']
+    #statistics = ['wp', 'mcf']
+    statistics = ['wp', 'xi', 'mcf']
     #savetag = '_fstar8.0_p1.0'
     #traintags = ['_nonolap', '_nonolap']#, f'{savetag}_nonolap']
     traintag = '_nonolap'
@@ -15,10 +16,9 @@ def main():
     errtag = '_hod3_test0'
     #testtags = ['_mean_test0','_mean_test0']#,f'{savetag}_mean_test0']
     #errtags = ['_hod3_test0','_hod3_test0']#, '_hod3_test0']
-    tags = ['_log_kM32ExpConst2_100hod','_log_kM32ExpConst_100hod']#, '_log_kM32ExpConst_100hod']
+    tags = ['_log_kM32ExpConst2_100hod','_log_kM32ExpConst_100hod','_log_kM32ExpConst_100hod']#, '_log_kM32ExpConst_100hod']
     #tags = ['_log_kM32ExpConst2_100hod']
    
-
     # statistics = ['mcf']
     # savetag = '_fstar8.0_p2.0'
     # traintags = [f'{savetag}_nonolap']

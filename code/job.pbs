@@ -1,7 +1,12 @@
 #!/bin/bash
 ##PBS -N test_gp
-#PBS -N dynesty_wp_upf_mcf_all
-##PBS -N dynesty_wp_upf_allcosmo
+##PBS -N dynesty_wp_upf_mcf_all
+##PBS -N dynesty_wp_hodnofv_mcut115_seed23_dlogz001
+##PBS -N dynesty_wp_hod-no-alpha-msat_dlogz001
+#PBS -N dynesty_wp_xi_upf_mcf_all_dlogz0000001_seed12
+##PBS -N dynesty_wp_mcf_all_dlogz01
+##PBS -N dynesty_wp_xi_upf_mcf_all_hprior
+##PBS -N dynesty_wp_omegam-sigma8-f_hprior
 ##PBS -N wp_upf_c3h3_omegam_sigma8_covperf
 ##PBS -N upf_c3h3_omegam_omegab_sigma8_covfrac
 ##PBS -N upf_c3h3_allcosmo_covperf2
