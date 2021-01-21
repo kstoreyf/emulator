@@ -11,7 +11,7 @@ class Emulator:
 
     def __init__(self, statistic, training_dir, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, testmean=True, log=False, mean=False, meansub=False, xrsq=False, nhod=100, kernel_name=None, nhod_test=100):
         
-        print("george version:", george.__version__) 
+        #print("george version:", george.__version__) 
         # set parameters
         self.statistic = statistic
         self.fixedparams = fixed_params
@@ -33,7 +33,6 @@ class Emulator:
         # load data
         self.load_training_data()
         if self.testing_dir:
-            assert testing_dir is not None, "Must specify testing_dir!"
             self.load_testing_data()
 
         # initialize emulator
@@ -115,7 +114,7 @@ class Emulator:
 
 
     def build(self):
-        print("Rebuilding emulators")
+        #print("Rebuilding emulators")
         for bb in range(self.nbins):
             training_data = self.process_data(self.training_data[:,bb], bb)
             # here i think it makes sense to just take the mean directly, bc have already done the other operations
@@ -204,7 +203,7 @@ class Emulator:
             np.savetxt(pred_fn, results.T, delimiter=',', fmt=['%f', '%e']) 
 
     def load_training_data(self):
-        print("Loading training data")
+        #print("Loading training data")
         # hod parameters (5000 rows, 8 cols)
         hods = np.loadtxt("../tables/HOD_design_np11_n5000_new_f_env.dat")
 
@@ -224,7 +223,7 @@ class Emulator:
         HH = HH[:, 0:nhodnonolap]
 
         self.nparams = nhodparams + ncosmoparams
-        print(f"Nparams: {self.nparams}")
+        #print(f"Nparams: {self.nparams}")
         self.ndata = HH.shape[1] * cosmos.shape[0]
 
         self.training_params = np.empty((self.ndata, self.nparams))
@@ -252,7 +251,7 @@ class Emulator:
 
 
     def load_testing_data(self):
-        print("Loading testing data")
+        #print("Loading testing data")
         
         hods_test = np.loadtxt("/mount/sirocco2/zz681/emulator/CMASSLOWZ/test_galaxy_mocks_wp_RSD/test_galaxy_mocks_new_f_env/HOD_test_np11_n1000_new_f_env.dat")
         nhodparams_test = hods_test.shape[1]
@@ -266,7 +265,7 @@ class Emulator:
         HH_test = range(0, self.nhod_test)
 
         self.nparams_test = nhodparams_test + ncosmoparams_test
-        print(f"Nparams: {self.nparams_test}")
+        #print(f"Nparams: {self.nparams_test}")
 
         self.testing_params = {}
         self.testing_data = {}

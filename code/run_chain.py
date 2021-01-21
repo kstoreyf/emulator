@@ -13,18 +13,19 @@ import initialize_chain
 
 
 def main():
-    #config_fn = f'../chain_configs/chains_wp.cfg'
+    config_fn = f'../chain_configs/chains_wp.cfg'
     #config_fn = f'../chain_configs/chains_wp_xi.cfg'
     #config_fn = f'../chain_configs/chains_wp_upf.cfg'
     #config_fn = f'../chain_configs/chains_wp_mcf.cfg'
     #config_fn = f'../chain_configs/chains_wp_upf_mcf.cfg'
     #config_fn = f'../chain_configs/chains_wp_xi_upf.cfg'
     #config_fn = f'../chain_configs/chains_wp_xi_mcf.cfg'
-    config_fn = f'../chain_configs/chains_wp_xi_upf_mcf.cfg'
+    #config_fn = f'../chain_configs/chains_wp_xi_upf_mcf.cfg'
     
     #config_fn = f'../chains/configs/minimize_wp_config.cfg'
     chain_fn = initialize_chain.main(config_fn)
     run(chain_fn, overwrite=True, mode='dynesty')
+    #run(chain_fn, overwrite=True, mode='emcee')
     #run(chain_fn, mode='minimize')
 
 def run(chain_fn, mode='dynesty', overwrite=False):
@@ -59,7 +60,8 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     nwalkers = f.attrs['nwalkers']
     nburn = f.attrs['nburn']
     nsteps = f.attrs['nsteps']
-    dlogz = f.attrs['dlogz']
+    dlogz = float(f.attrs['dlogz'])
+    print('dlogz:', f.attrs['dlogz'], dlogz)
     seed = f.attrs['seed']
     print(seed)
     print(nwalkers)
@@ -176,13 +178,17 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     
     start = time.time()
     if mode=='emcee':
-        res = chain.run_mcmc(emus, param_names, ys, cov, fixed_params=fixed_params, 
+        res = chain.run_mcmc_emcee(emus, param_names, ys, cov, fixed_params=fixed_params, 
                              truth=truth, nwalkers=nwalkers, nsteps=nsteps, 
                              nburn=nburn, multi=multi, chain_fn=chain_fn)
     elif mode=='dynesty':
         res = chain.run_mcmc_dynesty(emus, param_names, ys, cov, fixed_params=fixed_params, 
                                      truth=truth, multi=multi, chain_fn=chain_fn,
                                      dlogz=dlogz, seed=seed)
+        # from oct 1 version - https://github.com/kstoreyf/emulator/blob/master/code/run_chain.py
+        # res = chain.run_mcmc_dynesty_orig(emus, param_names, ys, cov, fixed_params=fixed_params, 
+        #                              truth=truth, multi=multi, chain_fn=chain_fn,
+        #                              dlogz=dlogz)
     elif mode=='minimize':
         res = chain.run_minimizer([emu], param_names, [y], [cov], fixed_params=fixed_params, 
                                   truth=truth, chain_fn=chain_fn)
@@ -190,7 +196,7 @@ def run(chain_fn, mode='dynesty', overwrite=False):
         raise ValueError(f"Mode {mode} not recognized!")
 
     end = time.time()
-    print(f"Time: {(end-start)/60.0} min")
+    print(f"Time: {(end-start)/60.0} min ({(end-start)} s)")
 
     return res
 

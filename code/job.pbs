@@ -3,10 +3,13 @@
 ##PBS -N dynesty_wp_upf_mcf_all
 ##PBS -N dynesty_wp_hodnofv_mcut115_seed23_dlogz001
 ##PBS -N dynesty_wp_hod-no-alpha-msat_dlogz001
-#PBS -N dynesty_wp_xi_upf_mcf_all_dlogz0000001_seed12
-##PBS -N dynesty_wp_mcf_all_dlogz01
-##PBS -N dynesty_wp_xi_upf_mcf_all_hprior
-##PBS -N dynesty_wp_omegam-sigma8-f_hprior
+##PBS -N chains_wp_xi_upf_mcf_c3h3_all_dynesty_dlogz1e-2_nongen_hpriorg_nlive500
+##PBS -N chains_wp_c3h3_all_dynesty_dlogz1e-2_nongen_hpriorg
+##PBS -N dynesty_wp_all_dlogz1e-2_nongen_hpriorg_walks50
+##PBS -N chains_wp_xi_upf_mcf_c3h3_allcosmo_dynesty_dlogz1e-2_nongen_hpriorg_single
+#PBS -N chains_wp_c3h3_all_dynesty_dlogz1e-2_nongen_hpriorg_voldec0.25_volcheck4
+##PBS -N dynesty_wp_xi_upf_mcf_all_dlogz1e-2_nongen_hpriorg_walks100
+##PBS -N chains_wp_xi_upf_mcf_c3h3_all_emcee_hpriore.h5
 ##PBS -N wp_upf_c3h3_omegam_sigma8_covperf
 ##PBS -N upf_c3h3_omegam_omegab_sigma8_covfrac
 ##PBS -N upf_c3h3_allcosmo_covperf2
