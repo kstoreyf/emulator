@@ -26,23 +26,20 @@ def lnprob(theta, *args):
         return -np.inf
     return lp + lnlike(theta, *args)
 
-# use flat prior on bounds emu is built from. 0 if in (ln 1), -inf if out (ln 0)
-# if proposal is outside of any parameter's prior, returns -inf; only 0 if inside all
-# theta: params proposed by sampler
+# use flat prior on bounds emu is built from. 0 if all params in prior (ln 1), -inf if out (ln 0)
 def lnprior(theta, param_names, *args):    
     for pname, t in zip(param_names, theta):
         # all emus should have same bounds, so just get first
         low, high = _emus[0].get_param_bounds(pname)
-        # ADD PRIOR ON M_CUT
         if pname=='M_cut':
-            #print("ADDING STRICTER PRIOR ON M_CUT")
+            # ADDING STRICTER PRIOR ON M_CUT
             low = 11.5
         if np.isnan(t) or t<low or t>high:
             return -np.inf
     return 0
 
-def lnprior_hypercube(theta, param_names, fixed_params, *args):
 
+def lnprior_hypercube(theta, param_names, fixed_params, *args):
     # indices in param_names/theta that are hod params
     idxs_hod = [i for i in range(len(param_names)) if param_names[i] in _param_names_hod]
     params_hod = param_names[idxs_hod]
@@ -65,12 +62,11 @@ def lnprior_hypercube(theta, param_names, fixed_params, *args):
     # hypercube prior
     theta_cosmo = [param_dict[pn] for pn in _param_names_cosmo]
     in_prior = is_in_hprior(theta_cosmo)
-    #print("checking hypercube prior!")
-    #print(theta_cosmo, in_prior)
     if not in_prior:
         return -np.inf
 
     return 0
+
 
 def prior_transform(u, param_names):
     v = np.array(u)
@@ -78,10 +74,11 @@ def prior_transform(u, param_names):
         # all emus should have same bounds, so just get first
         low, high = _emus[0].get_param_bounds(pname)
         if pname=='M_cut':
-            #print("ADDING STRICTER PRIOR ON M_CUT")
+            # ADDING STRICTER PRIOR ON M_CUT
             low = 11.5
         v[i] = u[i]*(high-low)+low
     return v
+
 
 def prior_transform_hypercube(u, param_names):
     v = np.array(u)
@@ -89,11 +86,8 @@ def prior_transform_hypercube(u, param_names):
     idxs_cosmo = [i for i in range(len(param_names)) if param_names[i] in _param_names_cosmo]
     if len(idxs_cosmo)>0:
         params_cosmo = param_names[idxs_cosmo]
-        #print("params")
-        #print(params_cosmo)
         dist = scipy.stats.norm.ppf(u[idxs_cosmo])  # convert to standard normal
         v[idxs_cosmo] = np.dot(_hprior_cov_sqrt, dist) + _hprior_means
-        #print(v[idxs_cosmo])
     
     idxs_hod = [i for i in range(len(param_names)) if param_names[i] in _param_names_hod]
     params_hod = param_names[idxs_hod]
@@ -114,7 +108,6 @@ def lnlike(theta, param_names, fixed_params, ys, cov):
     param_dict.update(fixed_params)
     emu_preds = []
     for emu in _emus:
-        
         pred = emu.predict(param_dict)
         emu_preds.append(pred)
 
@@ -139,7 +132,6 @@ def lnlike_hypercube(theta, param_names, fixed_params, ys, cov):#, prior_getter)
     # hypercube prior
     theta_cosmo = [param_dict[pn] for pn in _param_names_cosmo]
     in_prior = is_in_hprior(theta_cosmo)
-    #print("lnlike_hypercube; in_prior=",in_prior)#, "prior time:", pe-ps)
     if not in_prior:
         return -np.inf
 
@@ -160,6 +152,8 @@ def lnlike_hypercube(theta, param_names, fixed_params, ys, cov):#, prior_getter)
     print("lnlike_hypercube: theta=", theta, "; time=", e-s, "s; like =", like)
     return like
 
+
+# to test constant priors
 def lnlike_consthypercube(theta, param_names, fixed_params, ys, cov):#, prior_getter):
     theta = np.array(theta).flatten() #theta looks like [[[p]]] for some reason
     param_dict = dict(zip(param_names, theta)) #weirdly necessary for Powell minimization
@@ -168,7 +162,6 @@ def lnlike_consthypercube(theta, param_names, fixed_params, ys, cov):#, prior_ge
     # hypercube prior
     theta_cosmo = [param_dict[pn] for pn in _param_names_cosmo]
     in_prior = is_in_hprior(theta_cosmo)
-    #print("lnlike_hypercube; in_prior=",in_prior)#, "prior time:", pe-ps)
     if not in_prior:
         return -np.inf
 
@@ -367,22 +360,23 @@ def run_mcmc_dynesty(emus, param_names, ys, cov, fixed_params={}, truth={},
     f = h5py.File(chain_fn, 'r+')
     if 'dlogz' not in f.attrs:
         f.attrs['dlogz'] = dlogz
-    f.close()
 
     ncpu = mp.cpu_count()
     print(f"{ncpu} CPUs")
     # "The rule of thumb I use is N^2 * a few" (https://github.com/joshspeagle/dynesty/issues/208) 
-    nlive = max(num_params**2 * 4, 100)
+    nlive = max(num_params**2 * 1, 100)
+    f.attrs['nlive'] = nlive
     #nlive = 500 
     #sample_method = 'rslice'
-    sample_method = 'rwalk'
+    sample_method = 'rwalk' #default
     slices = 5 #default = 5
     walks = 25 #default = 25
     #bound = 'single'
-    bound = 'multi'
+    bound = 'multi' #default
     # FOR MULTI
-    vol_dec = 0.25 #default = 0.5, smaller more conservative
-    vol_check = 4.0 #default = 2.0, larger more conservative
+    vol_dec = 0.5 #default = 0.5, smaller more conservative
+    vol_check = 2.0 #default = 2.0, larger more conservative
+    f.close()
     
     print("nlive:", nlive)
     print("sample_method:", sample_method)
@@ -408,7 +402,6 @@ def run_mcmc_dynesty(emus, param_names, ys, cov, fixed_params={}, truth={},
             print("multi")
             pool = pool
             queue_size = ncpu
-            print("queue_size")
         else:
             print("serial")
             pool = None
@@ -457,7 +450,6 @@ def run_mcmc_dynesty(emus, param_names, ys, cov, fixed_params={}, truth={},
                 dset[0,:] = res[reskey]
             
         f.close()
-
 
 
 def run_mcmc_dynesty_gen(emus, param_names, ys, cov, fixed_params={}, truth={}, 

@@ -13,20 +13,19 @@ import initialize_chain
 
 
 def main():
-    config_fn = f'../chain_configs/chains_wp.cfg'
+    #config_fn = f'../chain_configs/chains_wp.cfg'
     #config_fn = f'../chain_configs/chains_wp_xi.cfg'
     #config_fn = f'../chain_configs/chains_wp_upf.cfg'
     #config_fn = f'../chain_configs/chains_wp_mcf.cfg'
     #config_fn = f'../chain_configs/chains_wp_upf_mcf.cfg'
     #config_fn = f'../chain_configs/chains_wp_xi_upf.cfg'
     #config_fn = f'../chain_configs/chains_wp_xi_mcf.cfg'
-    #config_fn = f'../chain_configs/chains_wp_xi_upf_mcf.cfg'
+    config_fn = f'../chain_configs/chains_wp_xi_upf_mcf.cfg'
     
-    #config_fn = f'../chains/configs/minimize_wp_config.cfg'
     chain_fn = initialize_chain.main(config_fn)
     run(chain_fn, overwrite=True, mode='dynesty')
     #run(chain_fn, overwrite=True, mode='emcee')
-    #run(chain_fn, mode='minimize')
+
 
 def run(chain_fn, mode='dynesty', overwrite=False):
 
@@ -52,7 +51,7 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     means = f.attrs['mean']
     nhods = f.attrs['nhod']
 
-    ### chain params4
+    ### chain params
     # required
     param_names = f.attrs['param_names']
     # optional
@@ -63,8 +62,10 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     dlogz = float(f.attrs['dlogz'])
     print('dlogz:', f.attrs['dlogz'], dlogz)
     seed = f.attrs['seed']
-    print(seed)
-    print(nwalkers)
+    
+    # print chain file info
+    for k, v in hf.attrs.items():
+        print(f'{k}: {v}')
 
     # Set file and directory names
     nstats = len(statistics)
@@ -72,14 +73,14 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     testing_dirs = [None]*nstats
     hyperparams = [None]*nstats
     acctags = [None]*nstats
+    gperrs = [None]*nstats
     ys = []
     cov_dir = '../../clust/covariances/'
     for i, statistic in enumerate(statistics):
         gptag = traintags[i] + errtags[i] + tags[i]
         acctags[i] = gptag + testtags[i]
         res_dir = '../../clust/results_{}/'.format(statistic)
-        #gperr = np.loadtxt(res_dir+"{}_error{}.dat".format(statistic, errtags[i]))
-        gperr = np.loadtxt(cov_dir+"error_aemulus_{}{}.dat".format(statistic, errtags[i]))
+        gperrs[i] = np.loadtxt(cov_dir+"error_aemulus_{}{}.dat".format(statistic, errtags[i]))
         training_dirs[i] = '{}training_{}{}/'.format(res_dir, statistic, traintags[i])
         testing_dirs[i] = '{}testing_{}{}/'.format(res_dir, statistic, testtags[i])
         hyperparams[i] = "../training_results/{}_training_results{}.dat".format(statistic, gptag)
@@ -87,7 +88,6 @@ def run(chain_fn, mode='dynesty', overwrite=False):
         # actual calculated stat
         _, y = np.loadtxt(testing_dirs[i]+'{}_cosmo_{}_HOD_{}_mean.dat'.format(statistic, cosmo, hod))
         ys.extend(y)
-        print('y:', y.shape, y)
 
     # number of parameters, out of 11 hod + 7 cosmo
     num_params = len(param_names)
@@ -107,17 +107,24 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     for (hn, ht) in zip(hod_names, hod_truth):
         fixed_params[hn] = ht
 
+    # full dict of true values
+    f.attrs['true_params_all'] = fixed_params
     # remove params that we want to vary from fixed param dict and add true values
     truth = {}
     for pn in param_names:
         truth[pn] = fixed_params[pn]
         fixed_params.pop(pn)
-
-    ### Set up chain datasets ###
     truths = [truth[pname] for pname in param_names]
-    f.attrs['true_values'] = truths
-    #for now will overwrite
+    f.attrs['fixed_params'] = fixed_params
+    f.attrs['variable_params'] = truth
+    #only those not fixed, aka this mirrors param_names
+    f.attrs['true_values'] = truths 
+    print("True values:")
+    print(truth)
+    
+    ### Set up chain datasets ###
     dsetnames = ['chain', 'lnprob', 'lnweight', 'lnevidence', 'varlnevidence']
+    #for now will overwrite
     for dsn in dsetnames:
         if dsn in f.keys():
             del f[dsn]
@@ -128,13 +135,11 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     f.create_dataset('varlnevidence', (0, 0,), chunks = True, compression = 'gzip', maxshape = (None, None, ))
     f.close()
 
-    print("True values:")
-    print(truth)
 
     print("Building emulators")
     emus = [None]*nstats
     for i, statistic in enumerate(statistics):
-        emu = emulator.Emulator(statistic, training_dirs[i],  fixed_params=fixed_params, gperr=gperr, hyperparams=hyperparams[i], log=logs[i], mean=means[i], nhod=nhods[i], kernel_name=kernel_names[i])
+        emu = emulator.Emulator(statistic, training_dirs[i],  fixed_params=fixed_params, gperr=gperrs[i], hyperparams=hyperparams[i], log=logs[i], mean=means[i], nhod=nhods[i], kernel_name=kernel_names[i])
         emu.build()
         emus[i] = emu
         print(f"Emulator for {statistic} built")
@@ -142,21 +147,22 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     ### Set up covariance matrix ###
     stat_str = '_'.join(statistics)
     cov_minerva_fn = f'../../clust/covariances/cov_minerva_{stat_str}.dat'
-    #acc_str = '_'.join(acctags)
+    #If all of the tags for the stats are the same, just use one of them (usually doing this now!)
     if len(set(traintags))==1 and len(set(errtags))==1 and len(set(testtags))==1:
         tag_str = traintags[0] + errtags[0] + testtags[0]
     else:
+        # Otherwise will need to join them all
         print("Using acctags joined for emu")
         tag_str.join(acctags)
-    # for now, use performace covariance on aemulus test set (see emulator/words/error.pdf)
+    # for now, use performance covariance on aemulus test set (see emulator/words/error.pdf)
     cov_emuperf_fn = f"{cov_dir}cov_emuperf_{stat_str}{tag_str}.dat"
-    #cov_emu_fn = f"../testing_results/cov_emu_{stat_str}{tag_str}.dat"
     if os.path.exists(cov_emuperf_fn):
         cov = np.loadtxt(cov_emuperf_fn)
     else:
         raise ValueError(f"Path to covmat {cov_emuperf_fn} doesn't exist!")
 
     # eventually will combine emu covariance with some test covariance, e.g. from minerva
+    #cov_emu_fn = f"../testing_results/cov_emu_{stat_str}{tag_str}.dat"
     #if os.path.exists(cov_minerva_fn) and os.path.exists(cov_emu_fn):
         # cov_minerva = np.loadtxt(cov_minerva_fn)
         # cov_minerva *= (1.5/1.05)**3
@@ -173,8 +179,9 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     #         covs.append(cov_perf)
     #     cov = block_diag(*covs)
 
-    print(np.linalg.cond(cov))
+    print("Covariance matrix:")
     print(cov)    
+    print("Condition number:", np.linalg.cond(cov))
     
     start = time.time()
     if mode=='emcee':
@@ -185,20 +192,16 @@ def run(chain_fn, mode='dynesty', overwrite=False):
         res = chain.run_mcmc_dynesty(emus, param_names, ys, cov, fixed_params=fixed_params, 
                                      truth=truth, multi=multi, chain_fn=chain_fn,
                                      dlogz=dlogz, seed=seed)
-        # from oct 1 version - https://github.com/kstoreyf/emulator/blob/master/code/run_chain.py
-        # res = chain.run_mcmc_dynesty_orig(emus, param_names, ys, cov, fixed_params=fixed_params, 
-        #                              truth=truth, multi=multi, chain_fn=chain_fn,
-        #                              dlogz=dlogz)
     elif mode=='minimize':
         res = chain.run_minimizer([emu], param_names, [y], [cov], fixed_params=fixed_params, 
                                   truth=truth, chain_fn=chain_fn)
     else:
         raise ValueError(f"Mode {mode} not recognized!")
-
     end = time.time()
-    print(f"Time: {(end-start)/60.0} min ({(end-start)} s)")
+    print(f"Time: {(end-start)/60.0} min ({(end-start)/3600.} hrs) [{(end-start)/(3600.*24.)} hrs]")
 
     return res
+
 
 if __name__=='__main__':
     main()
