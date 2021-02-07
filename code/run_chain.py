@@ -16,11 +16,11 @@ def main():
     #config_fn = f'../chain_configs/chains_wp.cfg'
     #config_fn = f'../chain_configs/chains_wp_xi.cfg'
     #config_fn = f'../chain_configs/chains_wp_upf.cfg'
-    #config_fn = f'../chain_configs/chains_wp_mcf.cfg'
-    #config_fn = f'../chain_configs/chains_wp_upf_mcf.cfg'
+    config_fn = f'../chain_configs/chains_wp_mcf.cfg'
     #config_fn = f'../chain_configs/chains_wp_xi_upf.cfg'
     #config_fn = f'../chain_configs/chains_wp_xi_mcf.cfg'
-    config_fn = f'../chain_configs/chains_wp_xi_upf_mcf.cfg'
+    #config_fn = f'../chain_configs/chains_wp_upf_mcf.cfg'
+    #config_fn = f'../chain_configs/chains_wp_xi_upf_mcf.cfg'
     
     chain_fn = initialize_chain.main(config_fn)
     run(chain_fn, overwrite=True, mode='dynesty')
@@ -62,10 +62,6 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     dlogz = float(f.attrs['dlogz'])
     print('dlogz:', f.attrs['dlogz'], dlogz)
     seed = f.attrs['seed']
-    
-    # print chain file info
-    for k, v in hf.attrs.items():
-        print(f'{k}: {v}')
 
     # Set file and directory names
     nstats = len(statistics)
@@ -107,21 +103,27 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     for (hn, ht) in zip(hod_names, hod_truth):
         fixed_params[hn] = ht
 
-    # full dict of true values
-    f.attrs['true_params_all'] = fixed_params
     # remove params that we want to vary from fixed param dict and add true values
     truth = {}
     for pn in param_names:
         truth[pn] = fixed_params[pn]
         fixed_params.pop(pn)
+    #can't store dicts in h5py, so make sure truths (for variable params) are in same order as param names 
     truths = [truth[pname] for pname in param_names]
-    f.attrs['fixed_params'] = fixed_params
-    f.attrs['variable_params'] = truth
-    #only those not fixed, aka this mirrors param_names
-    f.attrs['true_values'] = truths 
-    print("True values:")
-    print(truth)
+    f.attrs['true_values'] = truths
+    if len(fixed_params)>0:
+        fixed_param_names, fixed_param_values = np.array([[fpn,fpv] for fpn,fpv in fixed_params.items()]).T
+    else:
+        fixed_param_names = []
+        fixed_param_values = []
+    f.attrs['fixed_param_names'] = fixed_param_names
+    f.attrs['fixed_param_values'] = fixed_param_values
     
+    # print chain file info
+    print(f"h5 file attributes for chain_fn: {chain_fn}")
+    for k, v in f.attrs.items():
+        print(f'{k}: {v}')
+
     ### Set up chain datasets ###
     dsetnames = ['chain', 'lnprob', 'lnweight', 'lnevidence', 'varlnevidence']
     #for now will overwrite
@@ -133,8 +135,6 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     f.create_dataset('lnweight', (0, 0,), chunks = True, compression = 'gzip', maxshape = (None, None, ))
     f.create_dataset('lnevidence', (0, 0,), chunks = True, compression = 'gzip', maxshape = (None, None, ))
     f.create_dataset('varlnevidence', (0, 0,), chunks = True, compression = 'gzip', maxshape = (None, None, ))
-    f.close()
-
 
     print("Building emulators")
     emus = [None]*nstats
@@ -182,7 +182,9 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     print("Covariance matrix:")
     print(cov)    
     print("Condition number:", np.linalg.cond(cov))
-    
+    f.attrs['covariance_matrix'] = cov
+    f.close()
+
     start = time.time()
     if mode=='emcee':
         res = chain.run_mcmc_emcee(emus, param_names, ys, cov, fixed_params=fixed_params, 
@@ -198,7 +200,7 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     else:
         raise ValueError(f"Mode {mode} not recognized!")
     end = time.time()
-    print(f"Time: {(end-start)/60.0} min ({(end-start)/3600.} hrs) [{(end-start)/(3600.*24.)} hrs]")
+    print(f"Time: {(end-start)/60.0} min ({(end-start)/3600.} hrs) [{(end-start)/(3600.*24.)} days]")
 
     return res
 

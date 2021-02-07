@@ -6,9 +6,10 @@
 ##PBS -N chains_wp_xi_upf_mcf_c3h3_all_dynesty_dlogz1e-2_nongen_hpriorg_nlive500
 ##PBS -N chains_wp_c3h3_all_dynesty_dlogz1e-2_nongen_hpriorg
 ##PBS -N dynesty_wp_all_dlogz1e-2_nongen_hpriorg_walks50
-#PBS -N chains_wp_xi_upf_mcf_c3h3_all_dynesty_dlogz1e-2_nongen_hpriorg_fixgperr_nlivex1
+##PBS -N chains_wp_xi_upf_mcf_c3h3_all_dynesty_dlogz1e-2_nongen_hpriorg_fixgperr_nlivex3
 ##PBS -N chains_wp_xi_c3h3_allcosmo_dynesty_dlogz1e-2_nongen_hpriorg_fixgperr_nlivex2
-##PBS -N chains_wp_xi_upf_mcf_c3h3_all_emcee_hpriore_fixgperr.h5
+##PBS -N chains_wp_xi_upf_mcf_c3h3_all_emcee_hpriore_fixgperr
+#PBS -N chains_wp_mcf_c3h3_all_dy
 ##PBS -N wp_upf_c3h3_omegam_sigma8_covperf
 ##PBS -N upf_c3h3_omegam_omegab_sigma8_covfrac
 ##PBS -N upf_c3h3_allcosmo_covperf2
