@@ -9,7 +9,7 @@ import gp_trainer as trainer
 
 class Emulator:
 
-    def __init__(self, statistic, training_dir, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, testmean=True, log=False, mean=False, nhod=100, kernel_name=None, nhod_test=100):
+    def __init__(self, statistic, training_dir, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, testmean=True, log=False, mean=False, meansub=False, xrsq=False, nhod=100, kernel_name=None, nhod_test=100):
         
         print("george version:", george.__version__) 
         # set parameters
@@ -22,8 +22,11 @@ class Emulator:
         self.testmean = testmean # use the mean of the test boxes (recommended)
         self.log = log
         self.mean = mean
+        self.meansub = meansub
+        self.xrsq = xrsq
         self.nhod = nhod
         self.nhod_test = nhod_test
+        assert not (mean and meansub), "can't have both mean and meansub true!"
         assert kernel_name is not None, "Must specify kernel_name!"
         self.kernel_name = kernel_name
 
@@ -52,23 +55,39 @@ class Emulator:
 
     def process_data(self, data_orig, bb):
         data = data_orig.copy()
-        if self.log:
-            data = np.log10(data)
+        if self.xrsq:
+            data = data * self.rs[bb]**2
         if self.mean:
             data /= self.training_mean[bb]
-            #data -= 1
+        if self.meansub:
+            data -= self.training_mean[bb]
+        if self.log:
+            data = np.log10(data)
         return data
 
     # Make sure consistent with unprocess! 
     # [opposite order and operations]
     def unprocess_data(self, data_orig, bb):
         data = data_orig.copy()
-        if self.mean:
-            #data += 1
-            data *= self.training_mean[bb]
         if self.log:
             data = 10**data
+        if self.meansub:
+            data += self.training_mean[bb]
+        if self.mean:
+            data *= self.training_mean[bb]
+        if self.xrsq:
+            data = data / (self.rs[bb]**2)
         return data
+
+
+    def set_training_data_mean(self):
+        data = self.training_data
+        if self.xrsq:
+            data = data * self.rs**2
+        if self.log:
+            data = np.log10(data)
+        self.training_mean = np.mean(data, axis=0)
+
 
     def predict(self, params_pred):
         if type(params_pred)==dict:
@@ -99,6 +118,8 @@ class Emulator:
         print("Rebuilding emulators")
         for bb in range(self.nbins):
             training_data = self.process_data(self.training_data[:,bb], bb)
+            # here i think it makes sense to just take the mean directly, bc have already done the other operations
+            # (e.g. may already have divided by the mean, now there's a new mean)
             mean = np.mean(training_data)
             kernel = self.get_kernel(np.full(self.nparams, 0.1))
             gp = self.init_gp(self.training_params, self.gperr[bb], kernel, mean=mean)
@@ -215,7 +236,7 @@ class Emulator:
             for HID in HH_set:
                 HID = int(HID)
                 # training data is all test0 (always)
-                _, vals = np.loadtxt(self.training_dir + "{}_cosmo_{}_HOD_{}_test_0.dat".format(self.statistic, CID, HID),
+                rs, vals = np.loadtxt(self.training_dir + "{}_cosmo_{}_HOD_{}_test_0.dat".format(self.statistic, CID, HID),
                                        delimiter=',', unpack=True)
                 vals = vals[:self.nbins]
                 self.training_data[idata,:] = vals
@@ -224,11 +245,10 @@ class Emulator:
                 self.training_params[idata, :] = param_arr 
                 idata += 1
 
-        # mean of values in each bin (training_mean has length nbins)
-        if self.log:
-            self.training_mean = np.mean(np.log10(self.training_data), axis=0)
-        else:
-            self.training_mean = np.mean(self.training_data, axis=0)
+        self.rs = rs #rs are all the same so just take the last one
+        # set mean of values in each bin (training_mean has length nbins)
+        self.set_training_data_mean()
+
 
 
     def load_testing_data(self):
@@ -253,7 +273,6 @@ class Emulator:
 
         for CID_test in CC_test:
             for HID_test in HH_test:
-                hods_test_hid = hods_test[HID_test,:]
 
                 if self.testmean:
                     idtag = "cosmo_{}_HOD_{}_mean".format(CID_test, HID_test)

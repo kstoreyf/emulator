@@ -11,7 +11,7 @@ import time
 
 from schwimmbad import MultiPool
 import emcee
-import corner
+import dynesty
 
 
 def lnprob(theta, *args):
@@ -31,10 +31,19 @@ def lnprior(theta, param_names, *args):
     return 0
 
 
-def lnlike(theta, param_names, fixed_params, ys, cov):
-    ss = time.time()
-    print("guess:", theta)
+def prior_transform(u, param_names):
+    # print("PRIOR")
+    # print(param_names)
+    v = np.array(u)
+    for i, pname in enumerate(param_names):
+        # all emus should have same bounds, so just get first
+        low, high = _emus[0].get_param_bounds(pname)
+        v[i] = u[i]*(high-low)+low
+    return v
 
+
+def lnlike(theta, param_names, fixed_params, ys, cov):
+    s = time.time()
     theta = np.array(theta).flatten() #theta looks like [[[p]]] for some reason
     param_dict = dict(zip(param_names, theta)) #weirdly necessary for Powell minimization
     param_dict.update(fixed_params)
@@ -42,26 +51,16 @@ def lnlike(theta, param_names, fixed_params, ys, cov):
     for emu in _emus:
         
         pred = emu.predict(param_dict)
-        #time.sleep(1)
-        #pred = np.random.random(len(ys))*np.array(ys)
         emu_preds.append(pred)
 
     emu_pred = np.hstack(emu_preds)
-    #diff = np.array(emu_pred) - np.array(ys)
     diff = (np.array(emu_pred) - np.array(ys))/np.array(ys) #fractional error
     diff = diff.flatten()
 
-    #like = np.sum(diff**2/combined_inv_cov) #chi^2
-    #like = -np.dot(diff, np.dot(combined_inv_cov, diff.T).T) / 2.0
+    # the solve is a better way to get the inverse
     like = -0.5 * np.dot(diff, np.linalg.solve(cov, diff))
-    
-    ee = time.time()
-    print("pred:",emu_pred)
-    print("true:",ys)
-    print("diff:",diff)
-    print("like:",like)
-    print("LIKETIME:", ee-ss)
-    
+    e = time.time()
+    print("like call: theta=", theta, "; time=", e-s, "s; like =", like)
     return like
 
 
@@ -167,64 +166,63 @@ def run_mcmc(emus, param_names, ys, cov, fixed_params={}, truth={}, nwalkers=24,
             lnprob_chunk = np.empty((nwalkers, itsave)) 
 
 
-
-        
-
-def run_mcmc_complete(emus, param_names, ys, cov, fixed_params={}, truth={}, nwalkers=1000,
-        nsteps=100, nburn=20, plot_fn=None, multi=True, chain_fn=None):
+def run_mcmc_dynesty(emus, param_names, ys, cov, fixed_params={}, truth={}, 
+                     plot_fn=None, multi=True, chain_fn=None, dlogz=0.5):
 
     global _emus
     _emus = emus
 
+    nwalkers = 1 #make this have a dimension to line up with emcee chains
     num_params = len(param_names)
     args = [param_names, fixed_params, ys, cov]
-    
+    prior_args = [param_names]
+
+    f = h5py.File(chain_fn, 'r+')
+    if 'dlogz' not in f.attrs:
+        f.attrs['dlogz'] = dlogz
+    f.close()
+
     ncpu = mp.cpu_count()
     print(f"{ncpu} CPUs")
 
     print('truth:', truth)
     with mp.Pool() as pool:
-    #with MultiPool() as pool:
         if multi:
             print("multi")
-            sampler = emcee.EnsembleSampler(nwalkers, num_params, lnprob, args=args, pool=pool, threads=4)
-            #sampler = emcee.EnsembleSampler(nwalkers, num_params, lnprob, args=args, threads=4)
+            sampler = dynesty.NestedSampler(lnlike, prior_transform, num_params, logl_args=args, 
+                                            ptform_args=prior_args, pool=pool, queue_size=ncpu)
         else:
             print("serial")
-            sampler = emcee.EnsembleSampler(nwalkers, num_params, lnprob, args=args)
+            sampler = dynesty.NestedSampler(lnlike, prior_transform, num_params, logl_args=args,
+                                            ptform_args=prior_args)
 
-        p0 = _random_initial_guess(param_names, nwalkers, num_params)
-        print(param_names)
-        print("Initial:", p0)
+        itsave = 100
+        chain_chunk = np.empty((nwalkers, itsave, len(param_names))) 
+        lnprob_chunk = np.empty((nwalkers, itsave)) 
+        for it, result in enumerate(sampler.sample(dlogz=dlogz)):
+            iti = it + 1
+            rem = iti % itsave
+            print('iti:', iti)
+            print(result)
+            chain_chunk[:,rem-1,:] = result[2]
+            lnprob_chunk[:,rem-1] = result[3]
 
-        pos, prob, state = sampler.run_mcmc(p0, nburn)
-        sampler.reset()
+            if rem != 0:
+                continue
 
-        sampler.run_mcmc(pos, nsteps)
+            print("SAVING")
+            print('iti:', iti)
+            f = h5py.File(chain_fn, 'r+')
 
-    print("Saving results")    
+            chain_dset = f['chain']
+            lnprob_dset = f['lnprob']
+            chain_dset.resize((nwalkers, iti, len(param_names)))
+            lnprob_dset.resize((nwalkers, iti))
+        
+            chain_dset[:,iti-itsave:iti,:] = chain_chunk
+            lnprob_dset[:,iti-itsave:iti] = lnprob_chunk
 
-    f = h5py.File(chain_fn, 'r+')
+            f.close()
 
-    chain_dset = f['chain']
-    lnprob_dset = f['lnprob']
-
-    chain_dset.resize((nwalkers, nsteps, len(param_names)))
-    lnprob_dset.resize((nwalkers, nsteps))
- 
-    chain_dset[:,:,:] = np.array(sampler.chain)
-    lnprob_dset[:,:] = np.array(sampler.lnprobability)
-
-    print("Mean acceptance fraction: {0:.3f}"
-          .format(np.mean(sampler.acceptance_fraction)))
-
-    # tol = 1
-    # print("Mean autocorrelation time: {0:.3f} steps"
-    #  .format(np.mean(sampler.get_autocorr_time(c=tol))))
-
-    # f.attrs['mean_acceptance_fraction'] = np.mean(sampler.acceptance_fraction)
-    # f.attrs['mean_autocorr_time'] = np.mean(sampler.get_autocorr_time(c=tol))
-
-    f.close()
-
-    return 0
+            chain_chunk = np.empty((nwalkers, itsave, len(param_names))) 
+            lnprob_chunk = np.empty((nwalkers, itsave)) 

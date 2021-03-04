@@ -457,7 +457,7 @@ def get_training_error():
 
     return sample_var, shot_noise, diffmeans
 
-def plot_training(statistic, res_dir, data_dir, errtag='', subsample=None, version=None, nbins=9, test=False, times_r2=False):
+def plot_training(statistic, res_dir, data_dir, errtag='', subsample=None, version=None, nbins=9, test=False, xrsq=False):
     plt.figure(figsize=(10,8)) 
     ps = []
 
@@ -484,7 +484,7 @@ def plot_training(statistic, res_dir, data_dir, errtag='', subsample=None, versi
                 for box in range(0,5):
                     fn = '{}/{}_cosmo_{}_Box_{}_HOD_{}_test_0.dat'.format(data_dir, statistic, cosmo, box, hod)
                     r, p = np.loadtxt(fn, delimiter=',',unpack=True)
-                    if times_r2:
+                    if xrsq:
                         pplot = r[:nbins]**2 * p[:nbins]
                     else:
                         pplot = p[:nbins]
@@ -495,7 +495,7 @@ def plot_training(statistic, res_dir, data_dir, errtag='', subsample=None, versi
             else:
                 fn = '{}/{}_cosmo_{}_HOD_{}_test_0.dat'.format(data_dir, statistic, cosmo, hod)
                 r, p = np.loadtxt(fn, delimiter=',',unpack=True)
-                if times_r2:
+                if xrsq:
                     pplot = r[:nbins]**2 * p[:nbins]
                 else:
                     pplot = p[:nbins]
@@ -506,7 +506,7 @@ def plot_training(statistic, res_dir, data_dir, errtag='', subsample=None, versi
     
     plt.xlabel(r"r ($h^{-1}$Mpc)")
     stat_labels = {'upf':r"P$_U$(r)", 'wp':r'$w_p$($r_p$)', 'mcf':"M(r)", 'xi':r"$\xi_0$(r)", 'xi2':r"$\xi_2$(r)"}    
-    if times_r2:
+    if xrsq:
         plt.ylabel(r'r$^2$'+stat_labels[statistic])
     else:
         plt.ylabel(stat_labels[statistic])
@@ -551,11 +551,11 @@ def plot_testing(statistic, testtag, errtag='', nbins=9, onehod=None, nboxes=5):
                 fnt = '{}testing_{}{}/{}'.format(res_dir, statistic, testtag, idtag)
                 #fnt = '../testing_results/tests_{}{}/{}.dat'.format(statistic, acctag, idtag)
 
-                ntest, ptest = np.loadtxt(fnt, delimiter=',', unpack=True)
+                rtest, ptest = np.loadtxt(fnt, delimiter=',', unpack=True)
                 if errtag:
-                    plt.errorbar(ntest[:nbins], ptest[:nbins], yerr=gperr[:nbins], lw=0.5, elinewidth=1, capsize=1, color=color)
+                    plt.errorbar(rtest[:nbins], ptest[:nbins], yerr=gperr[:nbins], lw=0.5, elinewidth=1, capsize=1, color=color)
                 else:
-                    plt.plot(ntest[:nbins], ptest[:nbins], color=color, lw=1)
+                    plt.plot(rtest[:nbins], ptest[:nbins], color=color, lw=1)
             
             if not onehod:
                 colidx += 1
@@ -566,7 +566,7 @@ def plot_testing(statistic, testtag, errtag='', nbins=9, onehod=None, nboxes=5):
     ax.legend()
     plt.xlabel(r"r ($h^{-1}$Mpc)")
     stat_labels = {'upf':r"P$_U$(r)", 'wp':r'$w_p$($r_p$)', 'mcf':"M(r)", 'xi':r"$\xi_0$(r)", 'xi2':r"$\xi_2$(r)"}
-    if times_r2:
+    if xrsq:
         plt.ylabel(r'r$^2$'+stat_labels[statistic])
     else:
         plt.ylabel(stat_labels[statistic])
@@ -576,7 +576,8 @@ def plot_testing(statistic, testtag, errtag='', nbins=9, onehod=None, nboxes=5):
         plt.xscale('log')
 
 
-def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=100, err_as_percentiles=False, sample_var='aemulus'):
+def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=100, 
+                    xrsq=False, err_as_percentiles=False, sample_var='aemulus'):
     
     ncols = 3
     fig, ax = plt.subplots(ncols, 1, figsize=(10,15), gridspec_kw={'height_ratios': [1]*ncols})
@@ -597,8 +598,8 @@ def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=1
     elif sample_var=='aemulus':
         cov_test = np.loadtxt("../../clust/covariances/cov_aemulus_{}{}.dat".format(statistic, errtag))
     
-    if 'mean' in testtag:
-         cov_test *= 1./5. 
+    #if 'mean' in testtag:
+    #     cov_test *= 1./5. 
     err_test = np.diag(cov_test)
 
     for cosmo in CC_test:
@@ -610,8 +611,8 @@ def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=1
                 idtag = '{}_cosmo_{}_Box_0_HOD_{}_test_0'.format(statistic, cosmo, hod)
             fnt = '{}testing_{}{}/{}.dat'.format(res_dir, statistic, testtag, idtag)
 
-            ntest, ptest = np.loadtxt(fnt)
-            #ntest, ptest = np.loadtxt(fnt, delimiter=',', unpack=True)
+            rtest, ptest = np.loadtxt(fnt)
+            #rtest, ptest = np.loadtxt(fnt, delimiter=',', unpack=True)
             stat_mean += ptest[:nbins]
         
     stat_mean /= len(CC_test)*len(HH_test)
@@ -634,23 +635,31 @@ def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=1
             lw = 1
             alpha = 1
             fnt = '{}testing_{}{}/{}.dat'.format(res_dir, statistic, testtag, idtag)        
-            ntest, ptest = np.loadtxt(fnt)
-            #ntest, ptest = np.loadtxt(fnt, delimiter=',', unpack=True)
+            rtest, ptest = np.loadtxt(fnt)
+            if xrsq:
+                ptplot = rtest[:nbins]**2 * ptest[:nbins]
+            else:
+                ptplot = ptest[:nbins]
+            #rtest, ptest = np.loadtxt(fnt, delimiter=',', unpack=True)
             if i==0:
-                ax[0].plot(ntest[:nbins], ptest[:nbins], marker='o', ls='None', markerfacecolor='None', 
+                ax[0].plot(rtest[:nbins], ptplot, marker='o', ls='None', markerfacecolor='None', 
                                markeredgecolor=color, lw=lw, alpha=alpha, label='truth')
             else:
-                ax[0].plot(ntest[:nbins], ptest[:nbins], marker='o', ls='None', markerfacecolor='None', 
+                ax[0].plot(rtest[:nbins], ptplot, marker='o', ls='None', markerfacecolor='None', 
                                markeredgecolor=color, lw=lw, alpha=alpha)
 
             
             fnp = '../testing_results/predictions_{}{}/{}.dat'.format(statistic, acctag, idtag)
-            npredic, ppredic = np.loadtxt(fnp, delimiter=',', unpack=True)
+            rpredic, ppredic = np.loadtxt(fnp, delimiter=',', unpack=True)
+            if xrsq:
+                ppplot = rpredic[:nbins]**2 * ppredic[:nbins]
+            else:
+                ppplot = ppredic[:nbins]
             if i==0:
-                ax[0].plot(npredic[:nbins], ppredic[:nbins], marker=None, ls='-', color=color, lw=lw, 
+                ax[0].plot(rpredic[:nbins], ppplot, marker=None, ls='-', color=color, lw=lw, 
                                alpha=alpha, label='emulator prediction')
             else: 
-                ax[0].plot(npredic[:nbins], ppredic[:nbins], marker=None, ls='-', color=color, lw=lw, 
+                ax[0].plot(rpredic[:nbins], ppplot, marker=None, ls='-', color=color, lw=lw, 
                                alpha=alpha)
             
 
@@ -662,15 +671,15 @@ def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=1
                 #print(ppredic)
                 continue
             fracerrs.append(fracerr)
-            ax[1].plot(ntest[:nbins], fracerr[:nbins], color=color, lw=lw, alpha=alpha)
+            ax[1].plot(rtest[:nbins], fracerr[:nbins], color=color, lw=lw, alpha=alpha)
             i += 1
 
     ax[2].axhline(0, color='k', ls=':')
     
     cov_fracerrs = utils.covariance(fracerrs, zeromean=True)
     err_fracerrs = np.diag(cov_fracerrs)
-    ax[2].plot(ntest[:nbins], np.sqrt(err_fracerrs[:nbins]), color='b', lw=2, ls='-', label='error (RMS of fractional error)')
-    ax[2].plot(ntest[:nbins], np.sqrt(err_test[:nbins]), color='r', lw=2, label='sample variance')
+    ax[2].plot(rtest[:nbins], np.sqrt(err_fracerrs[:nbins]), color='b', lw=2, ls='-', label='error (RMS of fractional error)')
+    ax[2].plot(rtest[:nbins], np.sqrt(err_test[:nbins]), color='r', lw=2, label='sample variance')
 
     ax[2].set_ylabel("error")
     ax[2].legend()
@@ -679,7 +688,10 @@ def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=1
     
     ax[2].set_xlabel(r"r ($h^{-1}$Mpc)")
     stat_labels = {'upf':r"P$_U$(r)", 'wp':r'$w_p$($r_p$)', 'mcf':"M(r)", 'xi':r"$\xi_0$(r)", 'xi2':r"$\xi_2$(r)"}
-    ax[0].set_ylabel(stat_labels[statistic])
+    if xrsq:
+        ax[0].set_ylabel(r'r$^2$'+stat_labels[statistic])
+    else:
+        ax[0].set_ylabel(stat_labels[statistic])
     if statistic in ['wp', 'upf', 'xi']:
         ax[0].set_yscale('log')
     if statistic in ['wp', 'mcf', 'xi', 'xi2']:
@@ -687,6 +699,130 @@ def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=1
             ax[nc].set_xscale('log')
               
     ax[1].set_ylabel("fractional error")
+
+    return fracerrs
+
+
+def plot_accuracy_fromparams(statistic, testtag, acctag, errtag, params_zipped, hod=None, nbins=9, nhods=100, 
+                    xrsq=False, err_as_percentiles=False, sample_var='aemulus'):
+    
+
+    ncols = 3
+    fig, ax = plt.subplots(ncols, 1, figsize=(10,15), gridspec_kw={'height_ratios': [1]*ncols})
+    plt.subplots_adjust(hspace=0.15)
+
+    res_dir = '../../clust/results_{}/'.format(statistic)
+
+    stat_mean = np.zeros(nbins)
+        
+    if sample_var=='minerva':
+        minerva_dir = f'../../clust/covariances'
+        cov_minerva = np.loadtxt(f"{minerva_dir}/cov_minerva_{statistic}.dat")
+        L_minerva = 1.5 #Gpc
+        L_aemulus = 1.05 #Gpc
+        cov_test = cov_minerva*(L_minerva/L_aemulus)**3 
+    elif sample_var=='aemulus':
+        cov_test = np.loadtxt("../../clust/covariances/cov_aemulus_{}{}.dat".format(statistic, errtag))
+    
+    if 'mean' in testtag:
+         cov_test *= 1./5. 
+    err_test = np.diag(cov_test)
+
+    for (cosmo, hod) in params_zipped:
+        hod = int(hod)
+        if "mean" in acctag:
+            idtag = '{}_cosmo_{}_HOD_{}_mean'.format(statistic, cosmo, hod)
+        else:
+            idtag = '{}_cosmo_{}_Box_0_HOD_{}_test_0'.format(statistic, cosmo, hod)
+        fnt = '{}testing_{}{}/{}.dat'.format(res_dir, statistic, testtag, idtag)
+
+        rtest, ptest = np.loadtxt(fnt)
+        #rtest, ptest = np.loadtxt(fnt, delimiter=',', unpack=True)
+        stat_mean += ptest[:nbins]
+        
+    stat_mean /= len(list(params_zipped))
+    #color_idx = np.linspace(0, 1, len(set(params_zipped[:,0])))
+    color_idx = np.linspace(0, 1, len(list(params_zipped)))
+
+    i = 0
+    fracerrs = []
+    colidx = 0
+    for cosmo, hod in params_zipped:
+        #colidx = cosmo
+        #color=plt.cm.rainbow(color_idx[colidx])
+        color=plt.cm.rainbow(color_idx[colidx])
+        colidx += 1
+        if "mean" in acctag:
+            idtag = '{}_cosmo_{}_HOD_{}_mean'.format(statistic, cosmo, hod)
+        else:
+            idtag = '{}_cosmo_{}_Box_0_HOD_{}_test_0'.format(statistic, cosmo, hod)
+        
+        lw = 1
+        alpha = 1
+        fnt = '{}testing_{}{}/{}.dat'.format(res_dir, statistic, testtag, idtag)        
+        rtest, ptest = np.loadtxt(fnt)
+        if xrsq:
+            ptplot = rtest[:nbins]**2 * ptest[:nbins]
+        else:
+            ptplot = ptest[:nbins]
+        #rtest, ptest = np.loadtxt(fnt, delimiter=',', unpack=True)
+        if i==0:
+            ax[0].plot(rtest[:nbins], ptplot, marker='o', ls='None', markerfacecolor='None', 
+                            markeredgecolor=color, lw=lw, alpha=alpha, label='truth')
+        else:
+            ax[0].plot(rtest[:nbins], ptplot, marker='o', ls='None', markerfacecolor='None', 
+                            markeredgecolor=color, lw=lw, alpha=alpha)
+
+        
+        fnp = '../testing_results/predictions_{}{}/{}.dat'.format(statistic, acctag, idtag)
+        rpredic, ppredic = np.loadtxt(fnp, delimiter=',', unpack=True)
+        if xrsq:
+            ppplot = rpredic[:nbins]**2 * ppredic[:nbins]
+        else:
+            ppplot = ppredic[:nbins]
+        if i==0:
+            ax[0].plot(rpredic[:nbins], ppplot, marker=None, ls='-', color=color, lw=lw, 
+                            alpha=alpha, label='emulator prediction')
+        else: 
+            ax[0].plot(rpredic[:nbins], ppplot, marker=None, ls='-', color=color, lw=lw, 
+                            alpha=alpha)
+        
+
+        fracerr = (ppredic-ptest)/ptest
+        fracerrs.append(fracerr)
+        ax[1].plot(rtest[:nbins], fracerr[:nbins], color=color, lw=lw, alpha=alpha)
+        i += 1
+
+        if fracerr[-2]>10:
+            print(cosmo, hod, fracerr)
+
+    ax[2].axhline(0, color='k', ls=':')
+    
+    cov_fracerrs = utils.covariance(fracerrs, zeromean=True)
+    err_fracerrs = np.diag(cov_fracerrs)
+    ax[2].plot(rtest[:nbins], np.sqrt(err_fracerrs[:nbins]), color='b', lw=2, ls='-', label='error (RMS of fractional error)')
+    ax[2].plot(rtest[:nbins], np.sqrt(err_test[:nbins]), color='r', lw=2, label='sample variance')
+
+    ax[2].set_ylabel("error")
+    ax[2].legend()
+    
+    ax[0].legend()
+    
+    ax[2].set_xlabel(r"r ($h^{-1}$Mpc)")
+    stat_labels = {'upf':r"P$_U$(r)", 'wp':r'$w_p$($r_p$)', 'mcf':"M(r)", 'xi':r"$\xi_0$(r)", 'xi2':r"$\xi_2$(r)"}
+    if xrsq:
+        ax[0].set_ylabel(r'r$^2$'+stat_labels[statistic])
+    else:
+        ax[0].set_ylabel(stat_labels[statistic])
+    if statistic in ['wp', 'upf', 'xi']:
+        ax[0].set_yscale('log')
+    if statistic in ['wp', 'mcf', 'xi', 'xi2']:
+        for nc in range(ncols):
+            ax[nc].set_xscale('log')
+              
+    ax[1].set_ylabel("fractional error")
+
+    return fracerrs
 
 
 def compare_emulators(statistic, testtags, acctags, errtag, savetags, labels=None, subsample=None, nbins=9, remove=None,
@@ -735,10 +871,10 @@ def compare_emulators(statistic, testtags, acctags, errtag, savetags, labels=Non
                 fnt = '{}testing_{}{}/{}.dat'.format(res_dir, statistic, testtag, idtag)
                 
                 lw =1
-                ntest, ptest = np.loadtxt(fnt)
+                rtest, ptest = np.loadtxt(fnt)
 
                 fnp = '../testing_results/predictions_{}{}/{}.dat'.format(statistic, acctag, idtag)
-                npredic, ppredic = np.loadtxt(fnp, delimiter=',', unpack=True)
+                rpredic, ppredic = np.loadtxt(fnp, delimiter=',', unpack=True)
 
                 fracerr = (ppredic-ptest)/ptest
                 fracerrs.append(fracerr)
@@ -753,11 +889,11 @@ def compare_emulators(statistic, testtags, acctags, errtag, savetags, labels=Non
         pavg = (np.percentile(fracerrs, 84, axis=0)-np.percentile(fracerrs, 16, axis=0))/2.0
         p68 = np.percentile(fracerrs, 68, axis=0)
 
-        ax[0].plot(ntest[:nbins], std[:nbins], color=color, ls='-', label=labels[ee])
-        ax[1].plot(ntest[:nbins], p16[:nbins], color=color, ls='-')
-        ax[1].plot(ntest[:nbins], p84[:nbins], color=color, ls='-')
-        #ax[1].plot(ntest[:nbins], p68[:nbins], color='limegreen', ls='-', label='p68')
-        #ax[1].plot(ntest[:nbins], pavg[:nbins], color='orange', ls='-', label='pavg')
+        ax[0].plot(rtest[:nbins], std[:nbins], color=color, ls='-', label=labels[ee])
+        ax[1].plot(rtest[:nbins], p16[:nbins], color=color, ls='-')
+        ax[1].plot(rtest[:nbins], p84[:nbins], color=color, ls='-')
+        #ax[1].plot(rtest[:nbins], p68[:nbins], color='limegreen', ls='-', label='p68')
+        #ax[1].plot(rtest[:nbins], pavg[:nbins], color='orange', ls='-', label='pavg')
 
     # if multiple savetags, aka they are different:
     single_savetag = False
@@ -781,9 +917,9 @@ def compare_emulators(statistic, testtags, acctags, errtag, savetags, labels=Non
         if single_savetag:
             color='r'
             ls='-'
-        ax[0].plot(ntest[:nbins], gperr[:nbins], color=color, ls=ls, label=f'Aemulus error, {savetag[1:]}')
-        ax[1].plot(ntest[:nbins], gpp16[:nbins], color=color, ls=ls)
-        ax[1].plot(ntest[:nbins], gpp84[:nbins], color=color, ls=ls)
+        ax[0].plot(rtest[:nbins], gperr[:nbins], color=color, ls=ls, label=f'Aemulus error, {savetag[1:]}')
+        ax[1].plot(rtest[:nbins], gpp16[:nbins], color=color, ls=ls)
+        ax[1].plot(rtest[:nbins], gpp84[:nbins], color=color, ls=ls)
         ax[1].axhline(0, color='k', ls=':')
 
         ax[0].set_ylabel("fractional error (std)")

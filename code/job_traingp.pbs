@@ -1,6 +1,6 @@
 #!/bin/bash
 ##PBS -N train_gp_wp_nonolap_log_kM32ExpConst2_hod3
-#PBS -N train_gp_xi2_nonolap_kM32ExpConst2
+#PBS -N train_gp_xi_nonolap_kM32ExpConst2_mean_log_xrsq
 #PBS -l walltime=40:00:00
 #PBS -l nodes=1:ppn=9
 #PBS -m ae
