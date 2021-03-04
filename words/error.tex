@@ -89,7 +89,7 @@ This is defined as the fractional error between the box statistic and the mean s
 \end{equation}
 We finally compute the covariance of these $B \times C$ deviations from the mean,
 \begin{equation}
-    \cov{1box} = \frac{1}{BC-1} \sum_{b}^B \sum_{c}^C d_{b,c} \cdot d_{b,c}\T.
+    \cov{aemulus1box} = \frac{1}{BC-1} \sum_{b}^B \sum_{c}^C d_{b,c} \cdot d_{b,c}\T.
 \end{equation}
 Note that the expectation value of deviations from the mean should be zero, so we assume $\bar{d}_{b,c}=0$ when computing the covariance.
 
@@ -98,18 +98,18 @@ We do this because have a better handle on this sample variance error using the 
 We note that the random seeds, which we have not yet included, estimate the shot noise contribution; we will update with this later.
 
 
-\section{Measurement covariance with Minerva}
+\section{Measurement covariance with GLAM}
 
 We can estimate $\cov{test}$, the covariance between the bins of the statistic, with other sets of simulations that may have advantages to Aemulus.
-Here we use Minerva, for which we have more simulations and a larger volume than Aemulus simulations, with side length $L_\text{minerva}=1.5$ Gpc.
-We compute the statistic on $M=100$ Minerva mocks, which we index by $m$.
-The Minerva covariance matrix $\cov{minerva}$ is given by
+Here we use GLAM, for which we have more simulations and a larger volume than Aemulus simulations, with side length $L_\text{GLAM}=1$ Gpc.
+We compute the statistic on $M=100$ GLAM mocks, which we index by $m$.
+The GLAM covariance matrix $\cov{GLAM}$ is given by
 \begin{eqnarray}
 d_m &=& \frac{y_{m} - \bar{y}}{\bar{y}} \\
-\cov{minerva} &=& \frac{1}{M-1} \sum_m^M d_m \cdot d_m\T
+\cov{GLAM} &=& \frac{1}{M-1} \sum_m^M d_m \cdot d_m\T
 \end{eqnarray}
 where $\bar{y}$ is the mean of all $M$ statistics.
-Note that we have rescaled the covariance by the ratio of volumes of the test simulation and the Minerva simulation (Minerva errors will be smaller because it has more volume, so we need to inflate these).
+Note that we have rescaled the covariance by the ratio of volumes of the test simulation and the GLAM simulation (GLAM errors will be smaller because it has more volume, so we need to inflate these).
 
 
 \section{Combining and scaling covariances}
@@ -119,20 +119,20 @@ Covariances scale as the volume (covariance decreases with increasing volume; Kl
 
 We have multiple options of how to estimate $\cov{perf}$ and $\cov{test}$: 
 \begin{enumerate}[label=(\Alph*)]
-    \item $\cov{perf}$ is estimated using a test set that is composed of statistics computed on individual Aemulus boxes, and $\cov{test} = \cov{1box}$.
+    \item $\cov{perf}$ is estimated using a test set that is composed of statistics computed on individual Aemulus boxes, and $\cov{test} = \cov{aemulus1box}$.
 
-    \item $\cov{perf}$ is estimated with a test set is composed of the \emph{mean} of statistics computed on $B$ Aemulus box realizations, and $\cov{test} = \cov{Bbox} = \frac{1}{B}\cov{1box}$. 
+    \item $\cov{perf}$ is estimated with a test set is composed of the \emph{mean} of statistics computed on $B$ Aemulus box realizations, and $\cov{test} = \cov{aemulusBbox} = \frac{1}{B}\cov{aemulus1box}$. 
     (This choice of test set essentially increases the volume by a factor of $B$, so the error will be smaller.)
 
-    \item $\cov{perf}$ is estimated with a test set is composed of statistics computed on individual Aemulus boxes, but we estimate $\cov{test}$ with the Minerva simulations, so 
+    \item $\cov{perf}$ is estimated with a test set is composed of statistics computed on individual Aemulus boxes, but we estimate $\cov{test}$ with the GLAM simulations, so 
     \begin{equation}
-        \cov{test} = \bigg( \frac{L_\text{minerva} }{ L_\text{aemulus}} \bigg)^3  \cov{minerva}.
+        \cov{test} = \bigg( \frac{L_\text{GLAM} }{ L_\text{aemulus}} \bigg)^3  \cov{GLAM}.
     \end{equation}
-    Note that $L_\text{minerva} > L_\text{aemulus}$, so the Minerva error will be smaller than that of the test set used to compute $\cov{perf}$, and needs to be inflated to match it.
+    Note that $L_\text{GLAM} > L_\text{aemulus}$, so the GLAM error will be smaller than that of the test set used to compute $\cov{perf}$, and needs to be inflated to match it.
     
-    \item $\cov{perf}$ is estimated with a test set is composed of the mean statistics computed on $B$ Aemulus boxes, and we estimate $\cov{test}$ with the Minerva simulations. Then,
+    \item $\cov{perf}$ is estimated with a test set is composed of the mean statistics computed on $B$ Aemulus boxes, and we estimate $\cov{test}$ with the GLAM simulations. Then,
     \begin{equation}
-        \cov{test} =  \frac{1}{B}\bigg( \frac{L_\text{minerva} }{ L_\text{aemulus}} \bigg)^3  \cov{minerva}.
+        \cov{test} =  \frac{1}{B}\bigg( \frac{L_\text{GLAM} }{ L_\text{aemulus}} \bigg)^3  \cov{GLAM}.
         \end{equation}
 
 \end{enumerate}
