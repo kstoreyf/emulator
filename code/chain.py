@@ -154,6 +154,39 @@ def lnlike_hypercube(theta, param_names, fixed_params, ys, cov):#, prior_getter)
     return like
 
 
+def lnlike_hypercube_8bins(theta, param_names, fixed_params, ys, cov):#, prior_getter):
+    s = time.time()
+    theta = np.array(theta).flatten() #theta looks like [[[p]]] for some reason
+    param_dict = dict(zip(param_names, theta)) #weirdly necessary for Powell minimization
+    param_dict.update(fixed_params)
+    
+    # hypercube prior
+    theta_cosmo = [param_dict[pn] for pn in _param_names_cosmo]
+    in_prior = is_in_hprior(theta_cosmo)
+    if not in_prior:
+        return -np.inf
+
+    # make emu predictions
+    emu_preds = []
+    for emu in _emus:
+        pred = emu.predict(param_dict)
+        emu_preds.append(pred)
+
+    emu_pred = np.hstack(emu_preds)
+    diff = (np.array(emu_pred) - np.array(ys))/np.array(ys) 
+    #fractional error
+    diff = diff.flatten()
+    print(diff)
+    diff = diff[:8]
+
+    # the solve is a better way to get the inverse
+    like = -0.5 * np.dot(diff, np.linalg.solve(cov, diff))
+    e = time.time()
+
+    print("lnlike_hypercube: theta=", theta, "; time=", e-s, "s; like =", like)
+    return like
+
+
 # to test constant priors
 def lnlike_consthypercube(theta, param_names, fixed_params, ys, cov):#, prior_getter):
     theta = np.array(theta).flatten() #theta looks like [[[p]]] for some reason

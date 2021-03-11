@@ -1,8 +1,11 @@
 from matplotlib import pyplot as plt
 import numpy as np
+import h5py
+import pickle
+from getdist import plots, MCSamples
 
 import utils
-
+from chain_variables import *
 
 def main():
     #plot_test()
@@ -932,6 +935,201 @@ def compare_emulators(statistic, testtags, acctags, errtag, savetags, labels=Non
         ax[0].set_xscale('log')
         ax[1].set_xscale('log')
 
+
+def plot_autocorr(chain, color='steelblue'):
+    N = np.exp(np.linspace(np.log(100), np.log(chain.shape[1]), 10)).astype(int)
+    ndim = chain.shape[2]
+    auto = np.empty((len(N), ndim))
+    for i, n in enumerate(N):
+        for d in range(ndim):
+            auto[i][d] = utils.autocorr_new(chain[:, :n, d])
+
+    # Plot the comparisons
+    for d in range(ndim):
+        plt.loglog(N, auto, "o-", color=color)
+    ylim = plt.gca().get_ylim()
+    plt.plot(N, N / 50.0, "--k", label=r"$\tau = N/50$")
+    #plt.ylim(ylim)
+    plt.xlabel("number of samples, $N$")
+    plt.ylabel(r"$\tau$ estimates")
+    plt.legend(fontsize=14)
+
+
+def plot_contours_dynesty(chaintags, legend_labels=None, params_toplot=None, colors=None, 
+                  legend_loc='upper center', legend_fontsize=20, 
+                  vertical_markers=None, vertical_marker_color='grey'): 
+    bounds = utils.get_emulator_bounds()
+    sample_arr = []
+    for i, chaintag in enumerate(chaintags):
+
+        chain_fn = f'../chains/chains_{chaintag}.h5'
+        fw = h5py.File(chain_fn, 'r')
+        param_names = fw.attrs['param_names']
+        if vertical_markers is None:
+            vertical_markers_toplot = fw.attrs['true_values']
+        else:
+            vertical_markers_toplot = vertical_markers
+        fw.close()
+        
+        pickle_fn = f'{pickle_dir}/results_{chaintag}.pkl'
+        with open(pickle_fn, 'rb') as pf:
+            res = pickle.load(pf)
+            samples = res['samples']
+            lnweight = np.array(res['logwt'])
+            lnevidence = np.array(res['logz'])
+
+        if params_toplot is not None:    
+            idxs = []
+            for pm in params_toplot:
+                idxs.append(np.where(param_names == pm))
+            idxs = np.array(idxs).flatten()
+            samples = samples[:,idxs]
+            param_names = params_toplot
+            vertical_markers_toplot = vertical_markers_toplot[idxs]
+        
+        labels = [param_labels[pn] for pn in param_names]
+        ranges = [bounds[pn] for pn in param_names]
+
+        #[-1] bc just care about final evidence value
+        weights = np.exp(lnweight - lnevidence[-1]) 
+        weights = weights.flatten()
+
+        samps = MCSamples(names=param_names, labels=labels)
+        samps.setSamples(samples, weights=weights)
+        sample_arr.append(samps)
+
+    marker_args = {'color': vertical_marker_color}
+        
+    g = plots.get_subplot_plotter()
+    g.settings.alpha_filled_add=0.4
+    g.settings.figure_legend_frame = False
+    g.settings.legend_fontsize = legend_fontsize
+    g.settings.axis_marker_lw = 1.0
+    g.settings.axis_marker_color = 'dimgrey'
+    g.triangle_plot(sample_arr, filled=True, contour_colors=colors, names=param_names,
+                   legend_labels=legend_labels, markers=vertical_markers_toplot, title_limit=1, legend_loc=legend_loc,
+                    marker_args=marker_args, axis_marker_color='red')
+    return g
+
+
+def plot_fits(statistics, vals_arr_all, vals_true_all, gperrs, fit_labels, fit_colors, title=''):
+    lss = ['-', '--', ':', '-.']
+    vals_arr_all = np.array(vals_arr_all)
+    vals_true_all = np.array(vals_true_all)
+    
+    for i, statistic in enumerate(statistics):
+        fig, axarr = plt.subplots(2, 1, figsize=(7,7), sharex=True)
+        plt.subplots_adjust(hspace=0, wspace=0)
+        ax0, ax1 = axarr
+        
+        
+        ax0.plot(r_dict[statistic], vals_true_all[i], label='Truth', marker='o', ls='None', color='black')
+        #ax0.errorbar(r_dict[statistic], vals_true_all[i], yerr=10*gperrs[i]*vals_true_all[i], #fmt='o')
+        #             label='Truth', ls='None', color='black')
+        
+        for j in range(vals_arr_all.shape[1]):
+            ax0.plot(r_dict[statistic], vals_arr_all[i][j], label=fit_labels[j], ls=lss[j], color=fit_colors[j])
+            frac = (vals_arr_all[i][j] - vals_true_all[i])/vals_true_all[i]
+            #frac = (vals_arr_all[i][j] - vals_true_all[i])/(gperrs[i]*vals_true_all[i])
+            ax1.plot(r_dict[statistic], frac, label=fit_labels[j], ls=lss[j], color=fit_colors[j])
+            
+        # dummy to get this into legend
+        ax0.plot(0, 0, ls='-', marker='None', label='Aemulus 1-box sample variance', color='plum')
+        ax1.plot(r_dict[statistic], gperrs[i], label='Aemulus 1-box sample variance', ls='-', color='plum')
+        
+            
+        ax0.set_xscale(scale_dict[statistic][0])
+        ax0.set_yscale(scale_dict[statistic][1])
+        ax0.set_ylabel(statistic)
+        ax0.legend(fontsize=10, loc='best')
+        
+        ax1.axhline(0, color='darkgrey')
+        ax1.set_xscale(scale_dict[statistic][0])
+        ax1.set_xlabel(r"$r$")
+        ax1.set_ylabel("fractional error")
+
+
+def plot_contours(chaintags, legend_labels=None, params_toplot=None, nsteps=None, colors=None, 
+                  legend_loc='upper center', legend_fontsize=20, weight_with_dynesty=False): 
+   
+    bounds = utils.get_emulator_bounds() 
+    sample_arr = []
+    for i, chaintag in enumerate(chaintags):
+        
+        resample_chains = False
+        if 'dynesty' in chaintag:
+            resample_chains = True
+            assert not (nsteps!=None and resample_chains), "if resampling, shouldn't be selecting nsteps!"
+    
+        chain_fn = f'../chains/chains_{chaintag}.h5'
+        fw = h5py.File(chain_fn, 'r')
+
+        chain_dset = fw['chain']
+        chain = np.array(chain_dset)
+        print(chaintag, ':', chain.shape)
+        if nsteps:
+            chain = chain[:,:nsteps,:]
+   
+        lnprob_dset = fw['lnprob']  
+        param_names = fw.attrs['param_names']
+        true_values = fw.attrs['true_values']
+
+        if params_toplot is not None:    
+            idxs = []
+            for pm in params_toplot:
+                idxs.append(np.where(param_names == pm))
+            idxs = np.array(idxs).flatten()
+            chain = chain[:,:,idxs]
+            param_names = params_toplot
+            true_values = true_values[idxs]
+
+        nwalkers, nchain, ndim = chain.shape
+        
+        samples = chain.reshape(-1, chain.shape[-1])
+        labels = [param_labels[pn] for pn in param_names]
+        ranges = [bounds[pn] for pn in param_names]
+
+        if resample_chains:
+            lnweight_dset = fw['lnweight']
+            lnevidence_dset = fw['lnevidence']
+            #[-1] bc just care about final evidence value
+            lnweight = np.array(lnweight_dset)[0] #[0] bc an extra array dim
+            lnevidence = np.array(lnevidence_dset)[0]
+            weights = np.exp(lnweight - lnevidence[-1]) 
+            weights = weights.flatten()
+            
+            samples = np.empty((nchain, ndim))
+            for nd in range(ndim):
+                cn = chain[:,:,nd].flatten()
+                if weight_with_dynesty:
+                    samples[:,nd] = dynesty.utils.resample_equal(cn, weights)
+                else:
+                    samples[:,nd] = cn
+        else:
+            weights=None
+            
+        fw.close()
+        
+        if weight_with_dynesty:
+            weights = None
+        
+        # have not gotten ranges to work
+        samps = MCSamples(names=param_names, labels=labels, ranges=ranges)
+        # for some reason get slightly diff answer if don't use setSamples and pass them straight to MCSamples!
+        samps.setSamples(samples, weights=weights)
+        sample_arr.append(samps)
+
+    g = plots.get_subplot_plotter()
+    g.settings.alpha_filled_add=0.4
+    g.settings.figure_legend_frame = False
+    g.settings.legend_fontsize = legend_fontsize
+    g.settings.axis_marker_lw = 1.0
+    g.settings.axis_marker_color = 'dimgrey'
+    g.triangle_plot(sample_arr, filled=True, contour_colors=colors, names=param_names,
+                   legend_labels=legend_labels, markers=true_values, title_limit=1, legend_loc=legend_loc,
+                   #marker_args={'color': 'orange', 'lw':1.5}
+                   )
+    return g
 
 
 if __name__=="__main__":

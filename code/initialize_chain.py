@@ -111,14 +111,17 @@ def chain_config(f, cfg):
         assert key in cfg, "%s not in config but is required."%key
         f.attrs[key] = cfg[key]
 
-    optional_keys = ['multi', 'nwalkers', 'nsteps', 'nburn', 'dlogz', 'seed']
+    optional_keys = ['multi', 'nwalkers', 'nsteps', 'nburn', 'dlogz', 'seed', 'nbins', 'cov_fn']
     for key in optional_keys:
         if key in cfg:
             attr = cfg[key]
             attr = str(attr) if type(attr) is dict else attr
             f.attrs[key] = attr 
         else:
-            f.attrs[key] = float("NaN")
+            if key=='nbins':
+                f.attrs[key] = 9
+            else:
+                f.attrs[key] = float("NaN")
 
 
 if __name__ == '__main__':
