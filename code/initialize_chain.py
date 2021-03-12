@@ -65,9 +65,12 @@ def emu_config(f, cfg):
     # want to clafiy nothing specified
 
     for key in optional_keys:
-        attr = cfg[key] if key in cfg else None
-        attr = str(attr) if type(attr) is dict else attr 
-        f.attrs[key] = attr 
+        if key in cfg:
+            attr = cfg[key]
+            attr = str(attr) if type(attr) is dict else attr
+            f.attrs[key] = attr
+        else:
+            f.attrs[key] = float("NaN") 
 
 
 def data_config(f, cfg):
@@ -102,17 +105,23 @@ def chain_config(f, cfg):
         Cfg with MCMC data
     """
 
-    required_mcmc_keys = ['nwalkers', 'nsteps', 'nburn', 'param_names']
+    required_mcmc_keys = ['param_names']
 
     for key in required_mcmc_keys:
         assert key in cfg, "%s not in config but is required."%key
         f.attrs[key] = cfg[key]
 
-    optional_keys = ['multi']
+    optional_keys = ['multi', 'nwalkers', 'nsteps', 'nburn', 'dlogz', 'seed', 'nbins', 'cov_fn']
     for key in optional_keys:
-        attr = cfg[key] if key in cfg else 'None'
-        attr = str(attr) if type(attr) is dict else attr
-        f.attrs[key] = attr 
+        if key in cfg:
+            attr = cfg[key]
+            attr = str(attr) if type(attr) is dict else attr
+            f.attrs[key] = attr 
+        else:
+            if key=='nbins':
+                f.attrs[key] = 9
+            else:
+                f.attrs[key] = float("NaN")
 
 
 if __name__ == '__main__':

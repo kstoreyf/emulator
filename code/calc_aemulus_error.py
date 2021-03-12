@@ -6,10 +6,10 @@ import utils
 
 def main():
 
-    #statistics = ['wp','upf','mcf']
-    #statistics = ['mcf']
+    #statistics = ['wp','xi','upf','mcf']
+    statistics = ['wp', 'xi', 'upf']
     #statistics = ['upf']
-    statistics = ['xi2']
+    #statistics = ['xi2']
     #errtag = '_hod3_test0'
     #errtags = ['_hod3_test0']*len(statistics)
     #statistics = ['upf']

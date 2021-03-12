@@ -1,16 +1,9 @@
 #!/bin/bash
-#PBS -N test_gp
-##PBS -N wp_upf_c3h3_omegam_sigma8_covperf
-##PBS -N upf_c3h3_omegam_omegab_sigma8_covfrac
-##PBS -N upf_c3h3_allcosmo_covperf2
-##PBS -N wp_upf_c3h3_allhod_covperf2
-##PBS -N upf_c3h3_all_covperf
-##PBS -N wp_upf_c3h3_5cosmo_covperf
-##PBS -N upf_c3h3_msat_alpha_mcut_fenv_covfrac
-##PBS -N upf_c3h3_allcosmo_covperf_nw250
-##PBS -N wp_upf_allhod
-#PBS -l walltime=500:00:00
-#PBS -l nodes=1:ppn=9
+##PBS -N test_gp
+#PBS -N chains_wp_c3h3_omegam-sigma8-f_emcee_glamcov
+##PBS -N chains_wp_xi_upf_mcf_c2h0_all_dy_nbins8
+#PBS -l walltime=1000:00:00
+#PBS -l nodes=1:ppn=24
 #PBS -m ae
 #PBS -o output/$PBS_JOBNAME.out
 #PBS -j oe
@@ -20,8 +13,6 @@ PATH=$PBS_O_PATH
 echo $PBS_O_WORKDIR
 echo 'starting'
 echo -n 'Job is running on node '; cat $PBS_NODEFILE
-#python run_chain.py
-#conda activate george2
-python test_gp.py
+python run_chain.py
 echo 'done'
 
