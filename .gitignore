@@ -4,6 +4,7 @@ results/
 tables/
 testing_results/
 training_results/
+products/
 CMASS*/
 **/output
 *.pyc
