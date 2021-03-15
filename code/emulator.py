@@ -3,13 +3,19 @@ import numpy as np
 import george
 from george import kernels
 import multiprocessing as mp
+import pickle
+
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
 
 import gp_trainer as trainer
 
 
+
 class Emulator:
 
-    def __init__(self, statistic, training_dir, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, testmean=True, log=False, mean=False, meansub=False, xrsq=False, nhod=100, kernel_name=None, nhod_test=100):
+    def __init__(self, statistic, training_dir, testing_dir=None, hyperparams=None, fixed_params={}, nbins=9, gperr=None, testmean=True, log=False, mean=False, meansub=False, xrsq=False, nhod=100, kernel_name=None, nhod_test=100, model_dir=None):
         
         #print("george version:", george.__version__) 
         # set parameters
@@ -27,8 +33,9 @@ class Emulator:
         self.nhod = nhod
         self.nhod_test = nhod_test
         assert not (mean and meansub), "can't have both mean and meansub true!"
-        assert kernel_name is not None, "Must specify kernel_name!"
+        #assert kernel_name is not None, "Must specify kernel_name!"
         self.kernel_name = kernel_name
+        self.model_dir = model_dir
 
         # load data
         self.load_training_data()
@@ -42,15 +49,26 @@ class Emulator:
         if hyperparams:
             self.hyperparams = self.load_file_or_obj(hyperparams) #may still be None
         else:
-            kernel = self.get_kernel(np.full(self.nparams, 0.1))
-            self.hyperparams = np.empty((nbins, len(kernel)))
+            if kernel_name is not None:
+                kernel = self.get_kernel(np.full(self.nparams, 0.1))
+                self.hyperparams = np.empty((nbins, len(kernel)))
 
+            
 
     def load_file_or_obj(self, name):
         if type(name)==str:
             return np.loadtxt(name)
         else:
             return name
+
+    def build_ann(self):
+        # load models
+        print(self.model_dir)
+        self.model = keras.models.load_model(self.model_dir)
+        # for bb in range(self.nbins):
+        #     model_fn = f'{self.model_dir}/model_bin{bb}.h5'
+        #     self.models[bb] = keras.models.load_model(model_fn)
+
 
     def process_data(self, data_orig, bb):
         data = data_orig.copy()
@@ -109,6 +127,38 @@ class Emulator:
             val_pred, cov_pred = self.gps[bb].predict(training_data_pred, params_arr)
             val_pred = self.unprocess_data(val_pred, bb)
             y_pred[bb] = val_pred
+
+        return y_pred
+
+
+    def predict_ann(self, params_pred):
+        if type(params_pred)==dict:
+            params_arr = []
+            param_names_ordered = ['Omega_m', 'Omega_b', 'sigma_8', 'h', 'n_s', 'N_eff', 'w',
+                                    'M_sat', 'alpha', 'M_cut', 'sigma_logM', 'v_bc', 'v_bs', 'c_vir', 'f',
+                                   'f_env', 'delta_env', 'sigma_env']
+            for pn in param_names_ordered:
+                params_arr.append(params_pred[pn])
+        elif type(params_pred)==list or type(params_pred)==np.ndarray:
+            params_arr = params_pred
+        else:
+            raise ValueError("Params to predict at must be dict or array")
+
+        params_arr = np.atleast_2d(params_arr)
+        print(params_arr.shape)
+
+        y_pred = self.model.predict(params_arr)
+        y_pred = np.squeeze(y_pred)
+        print(y_pred)
+        print(y_pred.shape)
+        for bb in range(self.nbins):
+            y_pred[bb] = self.unprocess_data(y_pred[bb], bb)
+        #y_pred = np.zeros(self.nbins)
+        # for bb in range(self.nbins):
+        #     # predict on all the training data in the bin
+        #     val_pred = self.models[bb].predict(params_arr)
+        #     val_pred = self.unprocess_data(val_pred, bb)
+        #     y_pred[bb] = val_pred
 
         return y_pred
 
@@ -187,6 +237,77 @@ class Emulator:
                     gp, optimize=True).p_op
         return hyps
 
+    def train_ann(self, model_dir):
+        start = time.time()
+        self.model_dir = model_dir
+        print("Training commences!")
+        model = keras.Sequential()
+        model.add(layers.Dense(32, input_dim=self.nparams, activation='relu'))
+        model.add(layers.Dense(32, activation='relu'))
+        model.add(layers.Dense(self.nbins, activation='sigmoid'))
+
+        model.compile(loss='mean_squared_error',
+                        optimizer=keras.optimizers.Adam(learning_rate=0.001))
+        
+        training_data = np.empty(self.training_data.shape)
+        for bb in range(self.nbins):
+            training_data[:,bb] = self.process_data(self.training_data[:,bb], bb)
+        history = model.fit(self.training_params,                           training_data,
+                            validation_split=0.2,
+                            verbose=0, epochs=100)
+
+        # saving
+        model.save(self.model_dir)
+        save_history_fn = f'{self.model_dir}/history_bin.p'
+        with open(save_history_fn, 'wb') as fp:
+            pickle.dump(history.history, fp)
+
+        print("Done training!")
+        # saved in function
+        end = time.time()
+        print(f"Time: {(end-start)/60.0} min")
+
+    def train_ann_bybin(self, model_dir, nthreads=None):
+        start = time.time()
+        self.model_dir = model_dir
+        print("Training commences!")
+        if not nthreads:
+            nthreads = self.nbins
+        print("Constructing pool")
+        pool = mp.Pool(processes=nthreads)
+        print("Mapping bins")
+        res = pool.map(self.train_ann_bin, range(self.nbins))
+        print("Done training!")
+        # saved in function
+        end = time.time()
+        print(f"Time: {(end-start)/60.0} min")
+
+
+    def train_ann_bin(self, bb):
+        
+        model = keras.Sequential()
+        model.add(layers.Dense(32, activation='relu'))
+        model.add(layers.Dense(32, activation='relu'))
+        #model.add(layers.Dense(1, activation='sigmoid'))
+
+        model.compile(loss='mean_squared_error',
+                        optimizer=keras.optimizers.Adam(learning_rate=0.001))
+        
+        training_data = self.process_data(self.training_data[:,bb], bb)
+        history = model.fit(training_data, self.training_params,
+                            validation_split=0.2,
+                            verbose=0, epochs=100)
+
+        # saving
+        save_model_fn = f'{self.model_dir}/model_bin{bb}.h5'
+        model.save(save_model_fn)
+        save_history_fn = f'{self.model_dir}/history_bin{bb}.p'
+        with open(save_history_fn, 'wb') as fp:
+            pickle.dump(history.history, fp)
+
+        return model
+
+
     def test(self, predict_savedir):
         if not self.testing_dir:
             raise ValueError('Must provide testing directory in emulator constructor!')
@@ -201,6 +322,24 @@ class Emulator:
 
             results = np.array([self.testing_radii, vals_pred])
             np.savetxt(pred_fn, results.T, delimiter=',', fmt=['%f', '%e']) 
+
+
+    def test_ann(self, predict_savedir):
+        if not self.testing_dir:
+            raise ValueError('Must provide testing directory in emulator constructor!')
+
+        for pid, tparams in self.testing_params.items():
+            vals_pred = self.predict_ann(tparams)
+            if self.testmean:
+                idtag = "cosmo_{}_HOD_{}_mean".format(pid[0], pid[1])
+            else:
+                idtag = "cosmo_{}_Box_{}_HOD_{}_test_{}".format(pid[0], boxid, pid[1], testid)
+
+            pred_fn = f"{predict_savedir}/{self.statistic}_{idtag}.dat"
+
+            results = np.array([self.testing_radii, vals_pred])
+            np.savetxt(pred_fn, results.T, delimiter=',', fmt=['%f', '%e']) 
+
 
     def load_training_data(self):
         #print("Loading training data")

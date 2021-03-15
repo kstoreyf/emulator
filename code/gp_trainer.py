@@ -3,7 +3,6 @@ import scipy as sp
 import george
 from george.kernels import ExpSquaredKernel
 from george import kernels
-from mpl_toolkits.mplot3d import Axes3D
 import scipy.optimize as op
 import emcee
 from scipy.linalg import cholesky, cho_solve
