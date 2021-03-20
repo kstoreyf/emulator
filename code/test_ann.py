@@ -15,7 +15,7 @@ testsavetag = ''
 
 nhod_test = 100
 nhod = 100
-tag = '_log_{}hod_ann'.format(nhod)
+tag = '_log_{}hod_ann_aemuluserr_lr5e-4_3layer_validfix'.format(nhod)
 
 log = True
 mean = False
@@ -31,7 +31,7 @@ training_dir = '{}training_{}{}/'.format(res_dir, statistic, traintag)
 model_dir = "../training_ann_results/{}_training_results{}".format(statistic, anntag)
 
 testing_dir = '{}testing_{}{}/'.format(res_dir, statistic, testtag)
-predict_savedir = f"../testing_results/predictions_{statistic}{acctag}/"
+predict_savedir = f"../testing_results/predictions_{statistic}{acctag}"
 os.makedirs(predict_savedir, exist_ok=True)
 
 emu = emulator.Emulator(statistic, training_dir, testing_dir=testing_dir, 
@@ -39,3 +39,5 @@ emu = emulator.Emulator(statistic, training_dir, testing_dir=testing_dir,
             mean=mean, meansub=meansub, xrsq=xrsq, nhod=nhod, nhod_test=nhod_test, model_dir=model_dir)
 emu.build_ann()
 emu.test_ann(predict_savedir)
+#emu.build_ann_bybin()
+#emu.test_ann_bybin(predict_savedir)

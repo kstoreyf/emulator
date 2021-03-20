@@ -4,6 +4,7 @@ import george
 from george import kernels
 import multiprocessing as mp
 import pickle
+from sklearn.model_selection import train_test_split
 
 import tensorflow as tf
 from tensorflow import keras
@@ -62,36 +63,46 @@ class Emulator:
             return name
 
     def build_ann(self):
+        # load model
+        loss = self.loss_aemulus
+        print(loss.__name__)
+        # self.model = keras.models.load_model(self.model_dir, custom_objects={ loss.__name__: loss })
+        self.model = keras.models.load_model(self.model_dir, custom_objects={ 'loss_aemulus': loss })
+
+    def build_ann_bybin(self):
         # load models
-        print(self.model_dir)
-        self.model = keras.models.load_model(self.model_dir)
-        # for bb in range(self.nbins):
-        #     model_fn = f'{self.model_dir}/model_bin{bb}.h5'
-        #     self.models[bb] = keras.models.load_model(model_fn)
+        self.models = [None]*self.nbins
+        for bb in range(self.nbins):
+            model_fn = f'{self.model_dir}/model_bin{bb}.h5'
+            self.models[bb] = keras.models.load_model(model_fn)
 
 
     def process_data(self, data_orig, bb):
         data = data_orig.copy()
         if self.xrsq:
             data = data * self.rs[bb]**2
+        if self.log:
+            data = np.log10(data)
         if self.mean:
             data /= self.training_mean[bb]
         if self.meansub:
             data -= self.training_mean[bb]
-        if self.log:
-            data = np.log10(data)
+        # if self.log:
+        #     data = np.log10(data)
         return data
 
     # Make sure consistent with unprocess! 
     # [opposite order and operations]
     def unprocess_data(self, data_orig, bb):
         data = data_orig.copy()
-        if self.log:
-            data = 10**data
+        # if self.log:
+        #     data = 10**data
         if self.meansub:
             data += self.training_mean[bb]
         if self.mean:
             data *= self.training_mean[bb]
+        if self.log:
+            data = 10**data
         if self.xrsq:
             data = data / (self.rs[bb]**2)
         return data
@@ -145,20 +156,36 @@ class Emulator:
             raise ValueError("Params to predict at must be dict or array")
 
         params_arr = np.atleast_2d(params_arr)
-        print(params_arr.shape)
 
         y_pred = self.model.predict(params_arr)
         y_pred = np.squeeze(y_pred)
-        print(y_pred)
-        print(y_pred.shape)
         for bb in range(self.nbins):
             y_pred[bb] = self.unprocess_data(y_pred[bb], bb)
-        #y_pred = np.zeros(self.nbins)
-        # for bb in range(self.nbins):
-        #     # predict on all the training data in the bin
-        #     val_pred = self.models[bb].predict(params_arr)
-        #     val_pred = self.unprocess_data(val_pred, bb)
-        #     y_pred[bb] = val_pred
+
+        return y_pred
+
+    
+    def predict_ann_bybin(self, params_pred):
+        if type(params_pred)==dict:
+            params_arr = []
+            param_names_ordered = ['Omega_m', 'Omega_b', 'sigma_8', 'h', 'n_s', 'N_eff', 'w',
+                                    'M_sat', 'alpha', 'M_cut', 'sigma_logM', 'v_bc', 'v_bs', 'c_vir', 'f',
+                                   'f_env', 'delta_env', 'sigma_env']
+            for pn in param_names_ordered:
+                params_arr.append(params_pred[pn])
+        elif type(params_pred)==list or type(params_pred)==np.ndarray:
+            params_arr = params_pred
+        else:
+            raise ValueError("Params to predict at must be dict or array")
+
+        params_arr = np.atleast_2d(params_arr)
+
+        y_pred = np.zeros(self.nbins)
+        for bb in range(self.nbins):
+            # predict on all the training data in the bin
+            val_pred = self.models[bb].predict(params_arr)
+            val_pred = self.unprocess_data(val_pred, bb)
+            y_pred[bb] = val_pred
 
         return y_pred
 
@@ -237,28 +264,44 @@ class Emulator:
                     gp, optimize=True).p_op
         return hyps
 
+    def loss_aemulus(self, y_true, y_pred):
+        squared_err_diff = tf.square((y_true - y_pred)/self.gperr)
+        return tf.reduce_mean(squared_err_diff, axis=-1)
+
+
     def train_ann(self, model_dir):
         start = time.time()
         self.model_dir = model_dir
         print("Training commences!")
         model = keras.Sequential()
-        model.add(layers.Dense(32, input_dim=self.nparams, activation='relu'))
-        model.add(layers.Dense(32, activation='relu'))
-        model.add(layers.Dense(self.nbins, activation='sigmoid'))
+        model.add(layers.Dense(36, input_dim=self.nparams, activation='gelu'))
+        model.add(layers.Dense(18, activation='gelu'))
+        model.add(layers.Dense(18, activation='gelu'))
+        #model.add(layers.Dense(196, input_dim=self.nparams, activation='relu'))
+        #model.add(layers.Dense(196, activation='relu'))
+        model.add(layers.Dense(self.nbins))
 
-        model.compile(loss='mean_squared_error',
-                        optimizer=keras.optimizers.Adam(learning_rate=0.001))
+        # lr=0.01 best, others default (?)
+        adam = keras.optimizers.Adam(lr=0.0005, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+
+        model.compile(loss=self.loss_aemulus,
+                        optimizer=adam)
         
         training_data = np.empty(self.training_data.shape)
         for bb in range(self.nbins):
             training_data[:,bb] = self.process_data(self.training_data[:,bb], bb)
-        history = model.fit(self.training_params,                           training_data,
-                            validation_split=0.2,
-                            verbose=0, epochs=100)
+
+        # need to manually split validation data bc keras model.fit takes just last X%, and our data is ordered (i think)
+        x_train, x_valid, y_train, y_valid = train_test_split(self.training_params, training_data, test_size=0.1, shuffle=True)
+
+        history = model.fit(x_train, y_train,
+                            #validation_split=0.2,
+                            validation_data=(x_valid, y_valid),
+                            epochs=2500)
 
         # saving
         model.save(self.model_dir)
-        save_history_fn = f'{self.model_dir}/history_bin.p'
+        save_history_fn = f'{self.model_dir}/history.p'
         with open(save_history_fn, 'wb') as fp:
             pickle.dump(history.history, fp)
 
@@ -286,17 +329,19 @@ class Emulator:
     def train_ann_bin(self, bb):
         
         model = keras.Sequential()
-        model.add(layers.Dense(32, activation='relu'))
-        model.add(layers.Dense(32, activation='relu'))
-        #model.add(layers.Dense(1, activation='sigmoid'))
+        model.add(layers.Dense(72, input_dim=self.nparams, activation='relu'))
+        model.add(layers.Dense(36, activation='relu'))
+        model.add(layers.Dense(1))
 
-        model.compile(loss='mean_squared_error',
-                        optimizer=keras.optimizers.Adam(learning_rate=0.001))
+        adam = keras.optimizers.Adam(lr=0.01, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+        model.compile(loss='mean_absolute_error',
+                        optimizer=adam)
         
         training_data = self.process_data(self.training_data[:,bb], bb)
-        history = model.fit(training_data, self.training_params,
+        history = model.fit(self.training_params,
+                            training_data, 
                             validation_split=0.2,
-                            verbose=0, epochs=100)
+                            verbose=0, epochs=300)
 
         # saving
         save_model_fn = f'{self.model_dir}/model_bin{bb}.h5'
@@ -305,7 +350,7 @@ class Emulator:
         with open(save_history_fn, 'wb') as fp:
             pickle.dump(history.history, fp)
 
-        return model
+        return bb
 
 
     def test(self, predict_savedir):
@@ -336,6 +381,25 @@ class Emulator:
                 idtag = "cosmo_{}_Box_{}_HOD_{}_test_{}".format(pid[0], boxid, pid[1], testid)
 
             pred_fn = f"{predict_savedir}/{self.statistic}_{idtag}.dat"
+            print(pred_fn)
+
+            results = np.array([self.testing_radii, vals_pred])
+            np.savetxt(pred_fn, results.T, delimiter=',', fmt=['%f', '%e']) 
+
+
+    def test_ann_bybin(self, predict_savedir):
+        if not self.testing_dir:
+            raise ValueError('Must provide testing directory in emulator constructor!')
+
+        for pid, tparams in self.testing_params.items():
+            vals_pred = self.predict_ann_bybin(tparams)
+            if self.testmean:
+                idtag = "cosmo_{}_HOD_{}_mean".format(pid[0], pid[1])
+            else:
+                idtag = "cosmo_{}_Box_{}_HOD_{}_test_{}".format(pid[0], boxid, pid[1], testid)
+
+            pred_fn = f"{predict_savedir}/{self.statistic}_{idtag}.dat"
+            print(pred_fn)
 
             results = np.array([self.testing_radii, vals_pred])
             np.savetxt(pred_fn, results.T, delimiter=',', fmt=['%f', '%e']) 

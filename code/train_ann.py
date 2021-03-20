@@ -8,7 +8,7 @@ statistic = 'xi'
 traintag = '_nonolap'
 nhod = 100
 
-tag = '_log_{}hod_ann'.format(nhod)
+tag = '_log_{}hod_ann_aemuluserr_lr5e-4_3layer_validfix'.format(nhod)
 log = True 
 mean = False
 meansub = False
@@ -29,4 +29,5 @@ print("Training, savetag={}".format(anntag))
 emu = emulator.Emulator(statistic, training_dir=training_dir, nbins=nbins, 
                             gperr=gperr, log=log, mean=mean, meansub=meansub, xrsq=xrsq,
                             nhod=nhod,)
+#emu.train_ann_bybin(save_model_dir)
 emu.train_ann(save_model_dir)
