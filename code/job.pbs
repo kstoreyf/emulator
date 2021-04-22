@@ -1,7 +1,10 @@
 #!/bin/bash
 ##PBS -N test_gp
-#PBS -N chains_wp_c3h3_omegam-sigma8-f_emcee_glamcov
+##PBS -N chains_wp_c3h3_omegam-sigma8-f_emcee_glamcov
+##PBS -N chains_wp_xi_upf_c3h3_all_dy_finalicov
 ##PBS -N chains_wp_xi_upf_mcf_c2h0_all_dy_nbins8
+##PBS -N chains_wp_xi_c3h3_all_dy_glamemudiagnoBcov
+#PBS -N chains_wp_xi_c3h3_all_dy_glamemudiagcov
 #PBS -l walltime=1000:00:00
 #PBS -l nodes=1:ppn=24
 #PBS -m ae

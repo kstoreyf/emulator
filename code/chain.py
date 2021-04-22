@@ -86,10 +86,9 @@ def prior_transform_hypercube(u, param_names):
     # the indices of u / param_names that are cosmo
     idxs_cosmo = [i for i in range(len(param_names)) if param_names[i] in _param_names_cosmo]
     if len(idxs_cosmo)>0:
-        params_cosmo = param_names[idxs_cosmo]
         dist = scipy.stats.norm.ppf(u[idxs_cosmo])  # convert to standard normal
         v[idxs_cosmo] = np.dot(_hprior_cov_sqrt, dist) + _hprior_means
-    
+
     idxs_hod = [i for i in range(len(param_names)) if param_names[i] in _param_names_hod]
     params_hod = param_names[idxs_hod]
     for i, pname in zip(idxs_hod, params_hod):
@@ -118,6 +117,29 @@ def lnlike(theta, param_names, fixed_params, ys, cov):
 
     # the solve is a better way to get the inverse
     like = -0.5 * np.dot(diff, np.linalg.solve(cov, diff))
+    e = time.time()
+    print("like call: theta=", theta, "; time=", e-s, "s; like =", like)
+
+    return like
+
+
+def lnlike_icov(theta, param_names, fixed_params, ys, icov):
+    s = time.time()
+    theta = np.array(theta).flatten() #theta looks like [[[p]]] for some reason
+    param_dict = dict(zip(param_names, theta)) #weirdly necessary for Powell minimization
+    param_dict.update(fixed_params)
+    emu_preds = []
+    for emu in _emus:
+        pred = emu.predict(param_dict)
+        emu_preds.append(pred)
+
+    emu_pred = np.hstack(emu_preds)
+    diff = (np.array(emu_pred) - np.array(ys))/np.array(ys) #fractional error
+    #diff = (np.array(emu_pred) - np.array(ys))
+    diff = diff.flatten()
+
+    diff /= _standard_dev
+    like = -0.5 * np.dot(diff, np.dot(icov, diff))
     e = time.time()
     print("like call: theta=", theta, "; time=", e-s, "s; like =", like)
 
@@ -363,10 +385,10 @@ def run_mcmc_emcee(emus, param_names, ys, cov, fixed_params={}, truth={}, nwalke
 
 # NONGEN
 def run_mcmc_dynesty(emus, param_names, ys, cov, fixed_params={}, truth={}, 
-                     plot_fn=None, multi=True, chain_fn=None, dlogz=0.01, seed=None):
+                     plot_fn=None, multi=True, chain_fn=None, dlogz=0.01, seed=None, icov=None, using_icov=False):
 
     print("Dynesty sampling (static) - nongen")
-    global _emus, _param_names_cosmo, _param_names_hod, _hprior_cov_sqrt, _hprior_means
+    global _emus, _param_names_cosmo, _param_names_hod, _hprior_cov_sqrt, _hprior_means, _standard_dev
     #global _prior_cut, _prior_getter, _hprior_icov, _hprior_center, _hprior_cov, _hprior_means, _hprior_cov_sqrt
     _emus = emus
     _param_names_cosmo = ['Omega_m', 'Omega_b', 'sigma_8', 'h', 'n_s', 'N_eff', 'w']
@@ -375,12 +397,12 @@ def run_mcmc_dynesty(emus, param_names, ys, cov, fixed_params={}, truth={},
     # #_prior_getter = hypercube_prior.GET_PriorND()
     # _hprior_icov, _hprior_center = get_hprior_icov_center()
 
-    idxs_cosmo = [i for i in range(len(param_names)) if param_names[i] in _param_names_cosmo]
-    if len(idxs_cosmo)>0:
+    idxs_cosmo_in_names = [i for i in range(len(_param_names_cosmo)) if _param_names_cosmo[i] in param_names]
+    if len(idxs_cosmo_in_names)>0:
         hcov, hmeans = get_hprior_cov_means()
-        hcov_idxs = hcov[idxs_cosmo][:,idxs_cosmo] 
+        hcov_idxs = hcov[idxs_cosmo_in_names][:,idxs_cosmo_in_names] 
         _hprior_cov_sqrt = sqrtm(hcov_idxs)
-        _hprior_means = hmeans[idxs_cosmo]
+        _hprior_means = hmeans[idxs_cosmo_in_names]
     else:
         _hprior_cov_sqrt = None
         _hprior_means = None
@@ -388,18 +410,29 @@ def run_mcmc_dynesty(emus, param_names, ys, cov, fixed_params={}, truth={},
     nwalkers = 1 #make this have a dimension to line up with emcee chains
     num_params = len(param_names)
 
-    args = [param_names, fixed_params, ys, cov]
     prior_args = [param_names]
+    if using_icov:
+        # cov is icov
+        likelihood_func = lnlike_icov
+        args = [param_names, fixed_params, ys, icov]
+    else:
+        likelihood_func = lnlike
+        args = [param_names, fixed_params, ys, cov]
+    
+    _standard_dev = np.sqrt(np.diag(cov))
 
     f = h5py.File(chain_fn, 'r+')
+    if 'dlogz' is None:
+        dlogz = 1e-2
     if 'dlogz' not in f.attrs:
         f.attrs['dlogz'] = dlogz
+    print("[run_mcmc_dynesty] dlogz = ", f.attrs['dlogz'])
     ncpu = mp.cpu_count()
     print(f"{ncpu} CPUs")
 
     # "The rule of thumb I use is N^2 * a few" (https://github.com/joshspeagle/dynesty/issues/208) 
-    nlive = num_params**2 * 3
-    #nlive = max(num_params**2 * 3, 100)
+    #nlive = num_params**2 * 3
+    nlive = max(num_params**2 * 3, 10) #make sure the min is 10
     f.attrs['nlive'] = nlive
     #nlive = 500 
     #sample_method = 'rslice'
@@ -442,7 +475,7 @@ def run_mcmc_dynesty(emus, param_names, ys, cov, fixed_params={}, truth={},
 
         print("initialize sampler")
         sampler = dynesty.NestedSampler(
-            lnlike,
+            likelihood_func,
             prior_transform_hypercube, 
             num_params, logl_args=args, nlive=nlive,
             ptform_args=prior_args, rstate=rstate,

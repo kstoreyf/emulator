@@ -284,3 +284,9 @@ def get_fits(chaintag, param_arr):
 
     return statistics, np.array(vals_arr_all), np.array(vals_true_all), gperrs
 
+def get_cov(statistics, cov_tag, tag_str='', cov_dir='/home/users/ksf293/clust/covariances'):
+    stat_str = '_'.join(statistics)
+    cov_fn = f"{cov_dir}/cov_{cov_tag}_{stat_str}{tag_str}.dat"
+    cov = np.loadtxt(cov_fn)
+    return cov
+
