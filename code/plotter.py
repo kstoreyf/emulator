@@ -678,9 +678,12 @@ def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=1
             i += 1
 
     ax[2].axhline(0, color='k', ls=':')
-    
-    cov_fracerrs = utils.covariance(fracerrs, zeromean=True)
-    err_fracerrs = np.diag(cov_fracerrs)
+    print(np.sqrt(np.diag(utils.covariance(fracerrs, zeromean=True))))
+    print(np.sqrt(np.diag(utils.covariance(fracerrs, zeromean=False))))
+    print(np.std(fracerrs, axis=0)) 
+    #cov_fracerrs = utils.covariance(fracerrs, zeromean=True)
+    #err_fracerrs = np.diag(cov_fracerrs)
+    err_fracerrs = np.var(fracerrs, axis=0)
     ax[2].plot(rtest[:nbins], np.sqrt(err_fracerrs[:nbins]), color='b', lw=2, ls='-', label='error (RMS of fractional error)')
     ax[2].plot(rtest[:nbins], np.sqrt(err_test[:nbins]), color='r', lw=2, label='sample variance')
 
@@ -1130,6 +1133,31 @@ def plot_contours(chaintags, legend_labels=None, params_toplot=None, nsteps=None
                    #marker_args={'color': 'orange', 'lw':1.5}
                    )
     return g
+
+
+def plot_correlation_matrix(corr, statistics):
+    
+    nstats = len(statistics)
+    plt.figure(figsize=(2.5*nstats,2.5*nstats))
+    tick_labels = np.concatenate([np.round(r_dict[stat], 2) for stat in statistics])
+    im = plt.imshow(corr, origin='lower left', cmap='bwr_r', vmin=-1, vmax=1)
+    plt.xticks(ticks=range(len(tick_labels)), labels=tick_labels, rotation=90)
+    plt.yticks(ticks=range(len(tick_labels)), labels=tick_labels)
+
+    # Label statistics
+    for i, statistic in enumerate(statistics):
+        plt.text(9*i+3.5, -6, statistic, fontsize=20)
+        plt.text(-6, 9*i+3.5, statistic, fontsize=20, rotation=90)
+        if i==0:
+            continue
+        plt.axvline(9*i-0.5, color='k')
+        plt.axhline(9*i-0.5, color='k')
+
+    plt.xlabel(r"r ($h^{-1}$Mpc)", labelpad=40)
+    plt.ylabel(r"r ($h^{-1}$Mpc)", labelpad=40)
+
+    plt.colorbar(im, fraction=0.046, pad=0.04)
+
 
 
 if __name__=="__main__":

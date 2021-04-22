@@ -13,8 +13,8 @@ import initialize_chain
 
 
 def main():
-    config_fn = f'../chain_configs/chains_wp.cfg'
-    #config_fn = f'../chain_configs/chains_wp_xi.cfg'
+    #config_fn = f'../chain_configs/chains_wp.cfg'
+    config_fn = f'../chain_configs/chains_wp_xi.cfg'
     #config_fn = f'../chain_configs/chains_wp_upf.cfg'
     #config_fn = f'../chain_configs/chains_wp_mcf.cfg'
     #config_fn = f'../chain_configs/chains_wp_xi_upf.cfg'
@@ -23,8 +23,8 @@ def main():
     #config_fn = f'../chain_configs/chains_wp_xi_upf_mcf.cfg'
     
     chain_fn = initialize_chain.main(config_fn)
-    #run(chain_fn, overwrite=True, mode='dynesty')
-    run(chain_fn, overwrite=True, mode='emcee')
+    run(chain_fn, overwrite=True, mode='dynesty')
+    #run(chain_fn, overwrite=True, mode='emcee')
 
 
 def run(chain_fn, mode='dynesty', overwrite=False):
@@ -64,7 +64,12 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     seed = f.attrs['seed']
     nbins = f.attrs['nbins']
     cov_fn = f.attrs['cov_fn']
-
+    icov_fn = f.attrs['icov_fn']
+    msg = 'Cannot give both cov_fn and icov_fn in config file! But must have one of them'
+    using_cov = isinstance(cov_fn, str)
+    using_icov = isinstance(icov_fn, str)
+    #assert using_cov ^ using_icov, msg
+    
     # Set file and directory names
     nstats = len(statistics)
     training_dirs = [None]*nstats
@@ -87,6 +92,7 @@ def run(chain_fn, mode='dynesty', overwrite=False):
         _, y = np.loadtxt(testing_dirs[i]+'{}_cosmo_{}_HOD_{}_mean.dat'.format(statistic, cosmo, hod))
         y = y[:nbins]
         ys.extend(y)
+    f.attrs['ys'] = ys
 
     # number of parameters, out of 11 hod + 7 cosmo
     num_params = len(param_names)
@@ -128,27 +134,43 @@ def run(chain_fn, mode='dynesty', overwrite=False):
         print(f'{k}: {v}')
 
     # Set up Covariance matrix
-    if os.path.exists(cov_fn):
-        cov = np.loadtxt(cov_fn)
-    else:
-        raise ValueError(f"Path to covmat {cov_fn} doesn't exist!")
+    #if using_cov:
+    icov = None
+    if True:
+        if os.path.exists(cov_fn):
+            cov = np.loadtxt(cov_fn)
+        else:
+            raise ValueError(f"Path to covmat {cov_fn} doesn't exist!")
 
-    nbins_tot = 9 #the covmat should have been constructed with 9 bins per stat
-    err_message = f"Cov bad shape! {cov.shape}, but nbins_tot={nbins_tot} and nstats={nstats}"
-    assert cov.shape[0] == nstats*nbins_tot and cov.shape[0] == nstats*nbins_tot, err_message
-    # delete rows/cols of covmat we don't want to use
-    #nbins_tot = cov.shape[0]/nstats
-    if nbins < nbins_tot:
-        print(f"nbins={nbins}, while total in cov nbins_tot={nbins_tot}; removing {nbins_tot-nbins} bins")
-    idxs_toremove = np.array([np.arange(nbins_tot-1, nbins-1, -1)+(ns*nbins_tot) for ns in range(nstats)]).flatten()
-    # remove both row and col
-    cov = np.delete(cov, idxs_toremove, axis=0)
-    cov = np.delete(cov, idxs_toremove, axis=1)
-    print("Covariance matrix:")
-    print(cov)    
-    print(cov.shape)
-    print("Condition number:", np.linalg.cond(cov))
-    f.attrs['covariance_matrix'] = cov
+        nbins_tot = 9 #the covmat should have been constructed with 9 bins per stat
+        err_message = f"Cov bad shape! {cov.shape}, but nbins_tot={nbins_tot} and nstats={nstats}"
+        assert cov.shape[0] == nstats*nbins_tot and cov.shape[0] == nstats*nbins_tot, err_message
+        # delete rows/cols of covmat we don't want to use
+        #nbins_tot = cov.shape[0]/nstats
+        if nbins < nbins_tot:
+            print(f"nbins={nbins}, while total in cov nbins_tot={nbins_tot}; removing {nbins_tot-nbins} bins")
+        idxs_toremove = np.array([np.arange(nbins_tot-1, nbins-1, -1)+(ns*nbins_tot) for ns in range(nstats)]).flatten()
+        # remove both row and col
+        cov = np.delete(cov, idxs_toremove, axis=0)
+        cov = np.delete(cov, idxs_toremove, axis=1)
+        print("Covariance matrix:")
+        print(cov)    
+        print(cov.shape)
+        print("Condition number:", np.linalg.cond(cov))
+        f.attrs['covariance_matrix'] = cov
+
+    #elif using_icov:
+    if using_icov:
+    #if True:
+        if os.path.exists(icov_fn):
+            icov = np.loadtxt(icov_fn)
+        else:
+            raise ValueError(f"Path to inverse covmat {icov_fn} doesn't exist!")
+        print("Inverse covariance matrix:")
+        print(icov)    
+        print(icov.shape)
+        f.attrs['inverse_covariance_matrix'] = icov
+        #cov = icov # calling it cov so can pass this variable (this is bad i know)
 
     ### Set up chain datasets ###
     dsetnames = ['chain', 'lnprob', 'lnweight', 'lnevidence', 'varlnevidence']
@@ -193,7 +215,7 @@ def run(chain_fn, mode='dynesty', overwrite=False):
                              truth=truth, nwalkers=nwalkers, nsteps=nsteps, 
                              nburn=nburn, multi=multi, chain_fn=chain_fn)
     elif mode=='dynesty':
-        res = chain.run_mcmc_dynesty(emus, param_names, ys, cov, fixed_params=fixed_params, 
+        res = chain.run_mcmc_dynesty(emus, param_names, ys, cov, icov=icov, using_icov=using_icov, fixed_params=fixed_params, 
                                      truth=truth, multi=multi, chain_fn=chain_fn,
                                      dlogz=dlogz, seed=seed)
     elif mode=='minimize':
