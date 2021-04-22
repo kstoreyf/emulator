@@ -3,6 +3,7 @@ import numpy as np
 import george
 from george import kernels
 import multiprocessing as mp
+import json
 
 import gp_trainer as trainer
 
@@ -203,6 +204,24 @@ class Emulator:
             results = np.array([self.testing_radii, vals_pred])
             np.savetxt(pred_fn, results.T, delimiter=',', fmt=['%f', '%e']) 
 
+    def test_glam(self, predict_savedir):
+        param_file = 'glam_params.json'
+        testing_dir = f'/home/users/ksf293/clust/results_glam/results_glam_{self.statistic}'
+        with open(param_file, 'r') as jfile:
+            glam_params = json.load(jfile)
+            glam_params['M_sat'] = np.log10(glam_params['M_sat'])
+            glam_params['M_cut'] = np.log10(glam_params['M_cut'])
+        vals_pred = self.predict(glam_params)
+
+        # load in first mock to get radii
+        fnt = f"{testing_dir}/{self.statistic}_glam_n0.dat"
+        radii, _ = np.loadtxt(fnt, delimiter=',', unpack=True)
+        results = np.array([radii, vals_pred])
+
+        pred_fn = f"{predict_savedir}/{self.statistic}_glam.dat"
+        np.savetxt(pred_fn, results.T, delimiter=',', fmt=['%f', '%e']) 
+        
+
     def load_training_data(self):
         #print("Loading training data")
         # hod parameters (5000 rows, 8 cols)
@@ -269,7 +288,7 @@ class Emulator:
         #print(f"Nparams: {self.nparams_test}")
 
         self.testing_params = {}
-        self.testing_data = {}
+        self.testing_data = {} # this is never used! just params
 
         for CID_test in CC_test:
             for HID_test in HH_test:
