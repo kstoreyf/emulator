@@ -600,6 +600,8 @@ def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=1
         cov_test = cov_minerva*(L_minerva/L_aemulus)**3 
     elif sample_var=='aemulus':
         cov_test = np.loadtxt("../../clust/covariances/cov_aemulus_{}{}.dat".format(statistic, errtag))
+        # 5x volume factor to compare to emuperf on mean of 5!
+        cov_test *= 1/5
     
     #if 'mean' in testtag:
     #     cov_test *= 1./5. 
@@ -669,7 +671,7 @@ def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=1
             fracerr = (ppredic-ptest)/ptest
             #print(fracerr)
             if fracerr[5]>10:
-                print(fracerr)
+                #print(fracerr)
                 #print(ptest)
                 #print(ppredic)
                 continue
@@ -678,14 +680,14 @@ def plot_accuracy(statistic, testtag, acctag, errtag, hod=None, nbins=9, nhods=1
             i += 1
 
     ax[2].axhline(0, color='k', ls=':')
-    print(np.sqrt(np.diag(utils.covariance(fracerrs, zeromean=True))))
-    print(np.sqrt(np.diag(utils.covariance(fracerrs, zeromean=False))))
-    print(np.std(fracerrs, axis=0)) 
+    #print(np.sqrt(np.diag(utils.covariance(fracerrs, zeromean=True))))
+    #print(np.sqrt(np.diag(utils.covariance(fracerrs, zeromean=False))))
+    #print(np.std(fracerrs, axis=0)) 
     #cov_fracerrs = utils.covariance(fracerrs, zeromean=True)
     #err_fracerrs = np.diag(cov_fracerrs)
     err_fracerrs = np.var(fracerrs, axis=0)
-    ax[2].plot(rtest[:nbins], np.sqrt(err_fracerrs[:nbins]), color='b', lw=2, ls='-', label='error (RMS of fractional error)')
-    ax[2].plot(rtest[:nbins], np.sqrt(err_test[:nbins]), color='r', lw=2, label='sample variance')
+    ax[2].plot(rtest[:nbins], np.sqrt(err_fracerrs[:nbins]), color='b', lw=2, ls='-', label='error (stdev of fractional error)')
+    ax[2].plot(rtest[:nbins], np.sqrt(err_test[:nbins]), color='r', lw=2, label='sample variance (from aemulus test boxes)')
 
     ax[2].set_ylabel("error")
     ax[2].legend()
@@ -987,6 +989,8 @@ def plot_contours_dynesty(chaintags, legend_labels=None, params_toplot=None, col
                 idxs.append(np.where(param_names == pm))
             idxs = np.array(idxs).flatten()
             samples = samples[:,idxs]
+            # weight and evidence are for all parameters, shape (n_samps,)
+            # so don't need to slice
             param_names = params_toplot
             vertical_markers_toplot = vertical_markers_toplot[idxs]
         

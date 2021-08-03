@@ -13,9 +13,10 @@ def main():
     #traintags = ['_nonolap', '_nonolap']#, f'{savetag}_nonolap']
     traintag = '_nonolap'
     #testtag = '_mean_test0'
-    testtag = '_glam'
+    testtag = '_glam4'
     errtag = '_hod3_test0'
     savetag = '_residuals'
+    #savetag = '_signfix'
     #testtags = ['_mean_test0','_mean_test0']#,f'{savetag}_mean_test0']
     #errtags = ['_hod3_test0','_hod3_test0']#, '_hod3_test0']
     tags = ['_log_kM32ExpConst2_100hod','_log_kM32ExpConst_100hod','_log_kM32ExpConst_100hod', '_log_kM32ExpConst_100hod']
@@ -44,7 +45,12 @@ def main():
         acctags.append(acctag)
 
         print("Computing emu error for", statistic, testtag, acctag)
-        if 'glam' in testtag:
+        if 'glam4' in testtag:
+            fracerrs = load_fracerrs_glam4(statistic, testtag, acctag)
+            print("Using residual fractional errors!")
+            fracerrs -= np.mean(fracerrs, axis=0)
+            fracerr_arrs.append(fracerrs)
+        elif 'glam' in testtag:
             fracerrs = load_fracerrs_glam(statistic, testtag, acctag)
             print("Using residual fractional errors!")
             fracerrs -= np.mean(fracerrs, axis=0)
@@ -92,7 +98,31 @@ def load_fracerrs_glam(statistic, testtag, acctag, N_mocks=986, nbins=9):
         vals_all_obs[n,:] = vals_obs
 
     # Compute fractional errors
-    fracerrs = (vals_all_obs - vals_pred)/vals_all_obs
+    fracerrs = (vals_all_pred - vals_all_obs)/vals_all_obs
+    return fracerrs
+
+
+def load_fracerrs_glam4(statistic, testtag, acctag, N_mocks=986, nbins=9):
+
+    # Load emu prediction
+    predict_savedir = f"../testing_results/predictions_{statistic}{acctag}"
+    testing_dir = f'/home/users/ksf293/clust/results_glam4/results_glam4_{statistic}'
+
+    # Load all observations
+    vals_all_obs = np.zeros((N_mocks, nbins))
+    vals_all_pred = np.zeros((N_mocks, nbins))
+    for n in range(N_mocks):
+
+        pred_fn = f"{predict_savedir}/{statistic}_glam4_n{n}.dat"
+        r_pred, vals_pred = np.loadtxt(pred_fn, delimiter=',', unpack=True)
+        vals_all_pred[n,:] = vals_pred
+
+        fnt = f"{testing_dir}/{statistic}_glam4_n{n}.dat"
+        r_obs, vals_obs = np.loadtxt(fnt, delimiter=',', unpack=True)
+        vals_all_obs[n,:] = vals_obs
+
+    # Compute fractional errors
+    fracerrs = (vals_all_pred - vals_all_obs)/vals_all_obs
     return fracerrs
 
 
@@ -118,7 +148,9 @@ def load_fracerrs_aemulus(statistic, testtag, acctag, CC_test, HH_test):
             ptests.append(ptest)
             ppredicts.append(ppredict)
     
-    fracerrs = (np.array(ptests)-np.array(ppredicts))/np.array(ptests)
+    #fracerrs = (np.array(ptests)-np.array(ppredicts))/np.array(ptests)
+    # THIS WAS A BUG - SHOULD BE PRED-TEST
+    fracerrs = (np.array(ppredicts)-np.array(ptests))/np.array(ptests)
     return fracerrs
 
 

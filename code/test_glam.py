@@ -3,26 +3,24 @@ import os
 
 import emulator
 
-statistic = 'wp'
+#statistic = 'wp'
 #statistic = 'xi'
 #statistic = 'upf'
-#statistic = 'mcf'
+statistic = 'mcf'
 #statistic = 'xi2'
 #savetag = '_fstar8.0_p1.0'
 savetag = ''
 traintag = savetag+'_nonolap'
-testtag = savetag+'_glam'
+testtag = savetag+'_glam4'
 errtag = '_hod3_test0' #used for emulator error
 testmean = False
 testsavetag = ''
 
-nhod_test = 100
-nhod = 100
+nhod = 100 # used for training
 kernel_name = 'M32ExpConst' # xi, upf, mcf
 #kernel_name = 'M32ExpConst2' # wp
 tag = '_log_k{}_{}hod'.format(kernel_name, nhod)
 #tag = '_meansub_xrsq_k{}_{}hod'.format(kernel_name, nhod)
-#log = True
 log = True
 mean = False
 meansub = False
@@ -42,9 +40,9 @@ os.makedirs(predict_savedir, exist_ok=True)
 print("Initializing emu")
 emu = emulator.Emulator(statistic, training_dir,
             gperr=gperr, testmean=testmean, hyperparams=hyperparams, log=log, 
-            mean=mean, meansub=meansub, xrsq=xrsq, nhod=nhod, nhod_test=nhod_test, kernel_name=kernel_name)
+            mean=mean, meansub=meansub, xrsq=xrsq, nhod=nhod, kernel_name=kernel_name)
 print("Building emu")
 emu.build()
 print("Testing emu")
-emu.test_glam(predict_savedir)
+emu.test_glam4(predict_savedir)
 print("Done!")

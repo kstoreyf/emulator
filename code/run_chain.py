@@ -6,21 +6,23 @@ import scipy
 import emcee
 import h5py 
 from scipy.linalg import block_diag
+import argparse 
 
 import chain
 import emulator
 import initialize_chain
 
 
-def main():
+def main(config_fn):
     #config_fn = f'../chain_configs/chains_wp.cfg'
-    config_fn = f'../chain_configs/chains_wp_xi.cfg'
+    #config_fn = f'../chain_configs/chains_wp_xi.cfg'
     #config_fn = f'../chain_configs/chains_wp_upf.cfg'
     #config_fn = f'../chain_configs/chains_wp_mcf.cfg'
     #config_fn = f'../chain_configs/chains_wp_xi_upf.cfg'
     #config_fn = f'../chain_configs/chains_wp_xi_mcf.cfg'
     #config_fn = f'../chain_configs/chains_wp_upf_mcf.cfg'
     #config_fn = f'../chain_configs/chains_wp_xi_upf_mcf.cfg'
+    #config_fn = f'../chain_configs/chains_wp_xi_upf_mcf_c1h1.cfg'
     
     chain_fn = initialize_chain.main(config_fn)
     run(chain_fn, overwrite=True, mode='dynesty')
@@ -29,6 +31,8 @@ def main():
 
 def run(chain_fn, mode='dynesty', overwrite=False):
 
+    # TODO: this overwrite check doesn't work bc initialize_chain
+    # creates chain_fn either way. fix!
     if not overwrite and os.path.exists(chain_fn):
         raise ValueError(f"ERROR: File {chain_fn} already exists! Set overwrite=True to overwrite.")
     f = h5py.File(chain_fn, 'r+')
@@ -79,17 +83,17 @@ def run(chain_fn, mode='dynesty', overwrite=False):
     gperrs = [None]*nstats
     ys = []
     cov_dir = '../../clust/covariances/'
+    print("WARNING: train tag and test tag no longer used!")
     for i, statistic in enumerate(statistics):
         gptag = traintags[i] + errtags[i] + tags[i]
         acctags[i] = gptag + testtags[i]
-        res_dir = '../../clust/results_{}/'.format(statistic)
         gperrs[i] = np.loadtxt(cov_dir+"error_aemulus_{}{}.dat".format(statistic, errtags[i]))
-        training_dirs[i] = '{}training_{}{}/'.format(res_dir, statistic, traintags[i])
-        testing_dirs[i] = '{}testing_{}{}/'.format(res_dir, statistic, testtags[i])
+        training_dirs[i] = f'../../clust/results_aemulus_train/results_{statistic}/'
+        testing_dirs[i] = f'../../clust/results_aemulus_test_mean/results_{statistic}/'
         hyperparams[i] = "../training_results/{}_training_results{}.dat".format(statistic, gptag)
 
         # actual calculated stat
-        _, y = np.loadtxt(testing_dirs[i]+'{}_cosmo_{}_HOD_{}_mean.dat'.format(statistic, cosmo, hod))
+        _, y = np.loadtxt(testing_dirs[i]+'{}_cosmo_{}_HOD_{}_mean.dat'.format(statistic, cosmo, hod), delimiter=',', unpack=True)
         y = y[:nbins]
         ys.extend(y)
     f.attrs['ys'] = ys
@@ -230,4 +234,11 @@ def run(chain_fn, mode='dynesty', overwrite=False):
 
 
 if __name__=='__main__':
-    main()
+
+    #main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config_fn', type=str,
+                        help='name of config file')
+    args = parser.parse_args()
+    main(args.config_fn)
+

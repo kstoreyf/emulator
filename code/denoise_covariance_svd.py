@@ -6,9 +6,9 @@ import utils
 def main():
     
     #statistics = ['wp']
-    statistics = ['wp', 'xi']
+    #statistics = ['wp', 'xi']
     #statistics = ['wp', 'xi', 'upf']
-    #statistics = ['wp', 'xi', 'upf', 'mcf']
+    statistics = ['wp', 'xi', 'upf', 'mcf']
     #cov_tag = 'glam'
     #Nmocks = 986
     #tag_str = ''
@@ -19,9 +19,12 @@ def main():
     #Nmocks = 700
     #tag_str = ''
     #cov_tag = 'final'
-    cov_tag = 'glamemudiagnoB'
-    Nmocks = 986 # the smaller of 700*5 (c_emu) and 986 (c_glam) to be conservative
-    tag_str = ''
+    #cov_tag = 'glamemudiagnoB'
+    #Nmocks = 986 # the smaller of 700*5 (c_emu) and 986 (c_glam) to be conservative
+    cov_tag = 'smooth_emuperf'
+    tag_str = '_nonolap_hod3_test0_mean_test0'
+    Nmocks = 700
+    #tag_str = ''
 
     cov_dir = '/home/users/ksf293/clust/covariances'    
     stat_str = '_'.join(statistics)

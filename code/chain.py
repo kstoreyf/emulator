@@ -412,7 +412,6 @@ def run_mcmc_dynesty(emus, param_names, ys, cov, fixed_params={}, truth={},
 
     prior_args = [param_names]
     if using_icov:
-        # cov is icov
         likelihood_func = lnlike_icov
         args = [param_names, fixed_params, ys, icov]
     else:
@@ -427,7 +426,8 @@ def run_mcmc_dynesty(emus, param_names, ys, cov, fixed_params={}, truth={},
     if 'dlogz' not in f.attrs:
         f.attrs['dlogz'] = dlogz
     print("[run_mcmc_dynesty] dlogz = ", f.attrs['dlogz'])
-    ncpu = mp.cpu_count()
+    #ncpu = mp.cpu_count()
+    ncpu = 16
     print(f"{ncpu} CPUs")
 
     # "The rule of thumb I use is N^2 * a few" (https://github.com/joshspeagle/dynesty/issues/208) 

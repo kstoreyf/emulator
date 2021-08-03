@@ -90,7 +90,7 @@ class Emulator:
 
 
     def predict(self, params_pred):
-        print(params_pred)
+        #print(params_pred)
         if type(params_pred)==dict:
             params_arr = []
             param_names_ordered = ['Omega_m', 'Omega_b', 'sigma_8', 'h', 'n_s', 'N_eff', 'w',
@@ -220,6 +220,45 @@ class Emulator:
 
         pred_fn = f"{predict_savedir}/{self.statistic}_glam.dat"
         np.savetxt(pred_fn, results.T, delimiter=',', fmt=['%f', '%e']) 
+
+
+    def test_glam4(self, predict_savedir):
+        param_file = 'glam_params.json'
+        testing_dir = f'/home/users/ksf293/clust/results_glam4/results_glam4_{self.statistic}'
+        # glam3
+        #glam_hod_fn = '/mount/sirocco2/zz681/emulator/CMASSLOWZ_Msat/test_mocks/HOD_test_np11_n5000_new_f_env_Msat.dat'
+        # glam4
+        glam_hod_fn = '/mount/sirocco2/zz681/emulator/CMASSLOWZ/test_galaxy_mocks_wp_RSD/test_galaxy_mocks_new_f_env/HOD_test_np11_n1000_new_f_env.dat'
+        Nmocks = 986
+         
+        # get cosmology params
+        cosmo_param_names = ['Omega_m', 'Omega_b', 'sigma_8', 'h', 'n_s', 'N_eff', 'w']
+        with open(param_file, 'r') as jfile:
+            glam_params = json.load(jfile)
+            cosmos_glam = np.array([glam_params[cpn] for cpn in cosmo_param_names])
+            ncosmoparams_glam = len(cosmos_glam)
+
+        # get hod params
+        hods_glam = np.loadtxt(glam_hod_fn, usecols=range(8)) #only first 8 bc last 3 assembly bias fixed
+        nhodparams_glam = hods_glam.shape[1]
+        hods_glam[:,0] = np.log10(hods_glam[:,0])
+        hods_glam[:,2] = np.log10(hods_glam[:,2])
+        abs_glam = [0, 1, 0.5]
+        # load in first mock to get radii (all same)
+        fnt = f"{testing_dir}/{self.statistic}_glam4_n0.dat"
+        radii, _ = np.loadtxt(fnt, delimiter=',', unpack=True)
+        
+        # make and save emu predictions for all mocks
+        for n in range(Nmocks):
+            print(f"Testing stat {self.statistic} GLAM mock {n}")
+            hod_glam = hods_glam[n]
+            ch_params = np.concatenate((cosmos_glam, hod_glam))
+            params = np.concatenate((ch_params, abs_glam))
+            vals_pred = self.predict(params)
+            results = np.array([radii, vals_pred])
+
+            pred_fn = f"{predict_savedir}/{self.statistic}_glam4_n{n}.dat"
+            np.savetxt(pred_fn, results.T, delimiter=',', fmt=['%f', '%e'])
         
 
     def load_training_data(self):
@@ -295,7 +334,8 @@ class Emulator:
 
                 if self.testmean:
                     idtag = "cosmo_{}_HOD_{}_mean".format(CID_test, HID_test)
-                    rads, vals_test = np.loadtxt(self.testing_dir + "{}_{}.dat".format(self.statistic, idtag))
+                    rads, vals_test = np.loadtxt(self.testing_dir + "{}_{}.dat".format(self.statistic, idtag), 
+                                                  delimiter=',', unpack=True)
                 else:
                     idtag = "cosmo_{}_Box_{}_HOD_{}_test_{}".format(CID_test, boxid, HID_test, testid)
                     rads, vals_test = np.loadtxt(self.testing_dir + "{}_{}.dat".format(self.statistic, idtag),

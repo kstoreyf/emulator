@@ -38,6 +38,20 @@ def reduced_covariance(cov):
             reduced[i][j] = cov[i][j]/np.sqrt(ci*cj)
     return reduced
 
+def correlation_to_covariance2(corr, cov_orig):
+    stdevs = np.sqrt(np.diag(cov_orig))
+    return np.diag(stdevs) @ corr @ np.diag(stdevs)
+
+def correlation_to_covariance(corr, cov_orig):
+    corr = np.array(corr)
+    Nb = corr.shape[0]
+    cov = np.zeros_like(corr)
+    for i in range(Nb):
+        ci = cov_orig[i][i]
+        for j in range(Nb):
+            cj = cov_orig[j][j]
+            cov[i][j] = corr[i][j]*np.sqrt(ci*cj)
+    return cov
 
 # The prefactor unbiases the inverse; see e.g. Pearson 2016
 def inverse_covariance(cov, N):
@@ -290,3 +304,7 @@ def get_cov(statistics, cov_tag, tag_str='', cov_dir='/home/users/ksf293/clust/c
     cov = np.loadtxt(cov_fn)
     return cov
 
+def save_cov(cov, statistics, cov_tag, tag_str='', cov_dir='/home/users/ksf293/clust/covariances'):
+    stat_str = '_'.join(statistics)
+    cov_fn = f"{cov_dir}/cov_{cov_tag}_{stat_str}{tag_str}.dat"
+    np.savetxt(cov_fn, cov)

@@ -43,5 +43,4 @@ rlin = np.linspace(5, 45, 9)
 r_dict = {'wp': rlog, 'xi': rlog, 'upf': rlin, 'mcf': rlog}
 scale_dict = {'wp': ('log', 'log'), 'xi': ('log', 'log'), 'upf': ('linear', 'log'), 'mcf': ('log', 'linear')} #x, y
 stat_labels = {'upf':r"P$_U$(r)", 'wp':r'$w_p$($r_p$)', 'mcf':"M(r)", 'xi':r"$\xi_0$(r)", 'xi2':r"$\xi_2$(r)"}
-
-
+r_labels = {'upf':r"$r (h^{-1}$Mpc)", 'wp':r'$r_p (h^{-1}$Mpc)', 'mcf':r"$r (h^{-1}$Mpc)", 'xi':r"$r (h^{-1}$Mpc)", 'xi2':r"$r (h^{-1}$Mpc)$"}
