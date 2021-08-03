@@ -19,3 +19,4 @@ CMASS*/
 *.fdb_latexmk
 *.fls
 *.log
+*.cfg
