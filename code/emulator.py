@@ -39,12 +39,22 @@ class Emulator:
         # initialize emulator
         self.param_bounds = self.set_param_bounds()
         assert gperr is not None, "Must specify gperr, the error for the GPs!"
-        self.gperr = self.load_file_or_obj(gperr)
+        gperr_frac = self.load_file_or_obj(gperr)
+        self.gperr = self.scale_error(gperr_frac) 
         if hyperparams:
             self.hyperparams = self.load_file_or_obj(hyperparams) #may still be None
         else:
             kernel = self.get_kernel(np.full(self.nparams, 0.1))
             self.hyperparams = np.empty((nbins, len(kernel)))
+
+    def scale_error(self, fractional_error):
+        # absolute error
+        error = fractional_error * self.training_mean
+        # for log of y, errors are 1/ln(10) * dy/y. dy is error, for y we use the mean.
+        # source: https://faculty.washington.edu/stuve/log_error.pdf, https://web.ma.utexas.edu/users/m408n/m408c/CurrentWeb/LM3-6-2.php
+        if self.log:
+            error = 1/np.log(10) * error / self.training_mean
+        return error
 
 
     def load_file_or_obj(self, name):

@@ -7,7 +7,8 @@ import utils
 def main():
 
     #statistics = ['wp','xi','upf','mcf']
-    statistics = ['wp', 'xi', 'upf']
+    #statistics = ['wp', 'xi', 'upf']
+    statistics = ['xi']
     #statistics = ['upf']
     #statistics = ['xi2']
     #errtag = '_hod3_test0'
@@ -15,11 +16,8 @@ def main():
     #statistics = ['upf']
     #statistics = ['mcf']
     #errtags = ['_hod3_test0']
-    #savetag="_investigate_fstar8.0_p1.5"
     #testtags = ['', '', '_fstar8.0_p1.0']
-    #savetag = '_fstar8.0_p1.0'
-    errtag = '_hod3_test0'
-    savetag = ''
+    errtag = '_hod3_test0_check'
 
     hod = 3 # choose a middle-of-the-road hod
     nbins = 9
@@ -38,7 +36,7 @@ def main():
 
     devmean_arr = []
     for i, statistic in enumerate(statistics):
-        testing_dir = '../../clust/results_{}/testing_{}/'.format(statistic, statistic)
+        testing_dir = '../../clust/results_aemulus_test/results_{}/'.format(statistic)
         devmean_arr.append(calculate_devmeans(testing_dir, statistic, hod, cosmos, boxes, tests))
     
     #compute covariance assuming the mean is zero, as that is the expectation value (should be unbiased)
@@ -82,12 +80,13 @@ def calculate_devmeans(testing_dir, statistic, hod, cosmos, boxes, tests):
             ys_box.append(y_box)
 
         #The mean of the 5 boxes, for a given model (cosmo & HOD)
+        print("ys_box:", ys_box)
         y_mean = np.mean(ys_box, axis=0) 
-
+        print("y_mean:", y_mean)
         for y in ys_box:
             devmean = (y-y_mean)/y_mean
             devmeans.append(devmean)
-    
+        print("devmeans:", devmeans) 
     return devmeans
 
 

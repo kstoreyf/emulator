@@ -1,7 +1,5 @@
 #!/bin/bash
-##PBS -N train_gp_wp_nonolap_log_kM32ExpConst2_hod3
-##PBS -N train_gp_xi_nonolap_kM32ExpConst2_mean_log_xrsq
-#PBS -N train_ann_log_lr5e-4_3layer_validfix
+#PBS -N train_gp_xi_log_kM32ExpConst_logabserr
 #PBS -l walltime=40:00:00
 #PBS -l nodes=1:ppn=24
 #PBS -m ae
@@ -14,8 +12,8 @@ echo $PBS_O_WORKDIR
 echo 'starting'
 echo -n 'Job is running on node '; cat $PBS_NODEFILE
 # this works but conda activate does not
-source activate tfenv
-#python train_gp.py
-python train_ann.py
+#source activate tfenv
+python train_gp.py
+#python train_ann.py
 echo 'done'
 

@@ -1,8 +1,8 @@
 #!/bin/sh
-#PBS -N chain_wp_xi_upf_mcf_covsmoothgauss1
+#PBS -N chain_wp_covsmoothgauss1
 #PBS -l nodes=1:ppn=24
 
-#PBS -t 0-20%4
+#PBS -t 0-20%5
 
 #PBS -o output/$PBS_JOBNAME.out
 #PBS -j oe
@@ -23,6 +23,7 @@ hoddigit=${PBS_ARRAYID}/ncosmos
 cosmo=${PBS_ARRAYID}%ncosmos
 hod=cosmo*10+hoddigit
 
-echo "Running chain from config file chains_wp_xi_upf_mcf_c${cosmo}h${hod}_covsg1.cfg"
+stat_str="wp"
+echo "Running chain from config file chains_${stat_str}_c${cosmo}h${hod}_covsg1.cfg"
 
-python run_chain.py ../chain_configs/chains_wp_xi_upf_mcf_c${cosmo}h${hod}_covsg1.cfg
+python run_chain.py ../chain_configs/chains_${stat_str}_c${cosmo}h${hod}_covsg1.cfg
